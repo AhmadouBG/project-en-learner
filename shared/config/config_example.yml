@@ -1,0 +1,6 @@
+app:
+  name: project_en_learner
+  env: development
+
+database:
+  url: sqlite:///./dev.db
