@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Your AI Teaching Assistant",
+  "version": "1.0",
+  "description": "AI-powered tools for educators",
+  "permissions": ["activeTab", "storage"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["popup.js"],
+      "css": ["popup.css"]
+    }
+  ]
+ 
+}
