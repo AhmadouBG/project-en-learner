@@ -1,20 +1,30 @@
 import json
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+
 from pydantic import BaseModel
 import os
 from google import genai
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# Load .env from project root
 load_dotenv()
 
 # 🔑 API key
-api_key = os.getenv("GEMINI_API_KEY")
+api_key = os.getenv("API_KEY_GEMINI")
 if not api_key:
     raise ValueError("❌ API Key not found")
 
-genai.configure(api_key=api_key)
+client = genai.Client(api_key=api_key)
 
 
 class MeaningRequest(BaseModel):
@@ -42,8 +52,7 @@ Text:
 "{payload.text}"
 """
 
-    model = genai.GenerativeModel("gemini-2.5-flash")
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
 
     try:
         data = json.loads(response.text)
