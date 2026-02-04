@@ -1,4 +1,4 @@
-// Panel.js - Standalone script (no ES6 imports in content scripts)
+import { showMeaning } from "../MeaningView/MeaningView.js";
 
 // Load external CSS file for the panel
 const link = document.createElement("link");
@@ -79,19 +79,18 @@ function bindPanelEvents() {
     }
   });
 
-  // Manual input
-  contentInput.addEventListener("input", e => {
-    selectedText = e.target.value;
-  });
+    contentInput.addEventListener("input", e => {
+        selectedText = e.target.value;
+    });
 
-  // Meaning intent
-  getMeaningBtn.addEventListener("click", () => {
-    if (!selectedText) {
-      alert("Please select or enter text first");
-      return;
-    }
-    console.log("Requesting meaning for:", selectedText);
-  });
+    // intent → MeaningView
+    getMeaningBtn.addEventListener("click", () => {
+        if (!selectedText) {
+        alert("Please select some text first");
+        return;
+        }
+        showMeaning(selectedText);
+    });
 
    // Fix the ESC key listener
    document.addEventListener('keydown', (e) => {
