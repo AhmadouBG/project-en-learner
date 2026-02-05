@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8000/meaning";
+const API_URL = "http://localhost:8000/api/meaning";
 
 export async function showMeaning(text) {
   try {
@@ -25,30 +25,38 @@ async function fetchMeaning(text) {
 }
 
 function renderMeaning(data) {
-  const container = document.getElementById("meaning-view");
+  const meaningView = document.getElementById('meaning-view');
+  const closeMeaningBtn = document.getElementById('close-meaning');
+  
+  meaningView.style.display = 'block';
+  closeMeaningBtn.style.display = 'inline-block';
 
-  container.innerHTML = `
-    <div class="meaning-box">
-      <button id="close-meaning">✕</button>
+  // allow display to apply before animation
+  requestAnimationFrame(() => {
+    meaningView.classList.add('show');
+    closeMeaningBtn.classList.add('show');
+  });
 
-      <p class="meaning-text">${data.meaning}</p>
+  // Meaning
+  document.getElementById("ui-meaning-text").textContent = data.meaning;
 
-      <div class="synonym-tags">
-        ${data.synonyms.map(s => `<span>${s}</span>`).join("")}
-      </div>
+  // Synonyms
+  const synonymContainer = document.querySelector(".synonym-tags");
+  synonymContainer.innerHTML = "";
+  data.synonyms.forEach(word => {
+    const span = document.createElement("span");
+    span.className = "synonym-tag";
+    span.textContent = word;
+    synonymContainer.appendChild(span);
+  });
 
-      <ul class="example-list">
-        ${data.examples.map(e => `<li>${e}</li>`).join("")}
-      </ul>
-    </div>
-  `;
-
-  container.classList.add("show");
-
-  document
-    .getElementById("close-meaning")
-    .addEventListener("click", () => {
-      container.classList.remove("show");
-      container.innerHTML = "";
-    });
+  // Examples
+  const exampleList = document.querySelector(".example-list");
+  exampleList.innerHTML = "";
+  data.examples.forEach(ex => {
+    const li = document.createElement("li");
+    li.textContent = ex;
+    exampleList.appendChild(li);
+  });
 }
+

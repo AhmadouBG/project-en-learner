@@ -1,58 +1,29 @@
-import json
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import os
-from google import genai
+# backend/api/routes/meaning.py
+from fastapi import APIRouter, HTTPException
+from backend.api.schemas.api_schemas import MeaningRequest, MeaningResponse
+from backend.services.meaning_service import MeaningService
 
-app = FastAPI()
+router = APIRouter(prefix="/api", tags=["Meaning"])
 
-load_dotenv()
+# Singleton service instance (reused across requests)
+_service = None
 
-# 🔑 API key
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    raise ValueError("❌ API Key not found")
+def get_service():
+    global _service
+    if _service is None:
+        _service = MeaningService()
+    return _service
 
-genai.configure(api_key=api_key)
-
-
-class MeaningRequest(BaseModel):
-    text: str
-
-
-@app.post("/meaning")
-def get_meaning(payload: MeaningRequest):
-    prompt = f"""
-You are a dictionary API.
-
-Return ONLY valid JSON.
-NO markdown.
-NO explanation.
-NO extra text.
-
-JSON format:
-{{
-  "meaning": "short clear explanation",
-  "synonyms": ["synonym1", "synonym2"],
-  "examples": ["example sentence 1", "example sentence 2"]
-}}
-
-Text:
-"{payload.text}"
-"""
-
-    model = genai.GenerativeModel("gemini-2.5-flash")
-    response = model.generate_content(prompt)
-
+@router.post("/meaning", response_model=MeaningResponse)
+async def get_meaning(request: MeaningRequest) -> MeaningResponse:
+    """
+    Get meaning of word/phrase
+    
+    - Input: { "text": "example" }
+    - Output: { "text": "example", "meaning": "...", "synonyms": [...], "examples": [...] }
+    """
     try:
-        data = json.loads(response.text)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="Invalid JSON from Gemini")
-
-    return {
-        "text": payload.text,
-        "meaning": data["meaning"],
-        "synonyms": data["synonyms"],
-        "examples": data["examples"]
-    }
+        service = get_service()
+        return await service.get_meaning(request.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

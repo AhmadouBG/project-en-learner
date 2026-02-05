@@ -1,4 +1,18 @@
-import { showMeaning } from "../MeaningView/MeaningView.js";
+// Attempt to dynamically load MeaningView to avoid static import errors in content script modules
+let showMeaning = (text) => {
+  console.warn("MeaningView not loaded yet", text);
+};
+(async () => {
+  try {
+    const mod = await import(chrome.runtime.getURL("src/components/MeaningView/MeaningView.js"));
+    if (mod && typeof mod.showMeaning === "function") {
+      showMeaning = mod.showMeaning;
+      console.log("MeaningView loaded dynamically");
+    }
+  } catch (err) {
+    console.error("Failed to dynamically import MeaningView:", err);
+  }
+})();
 
 // Load external CSS file for the panel
 const link = document.createElement("link");
