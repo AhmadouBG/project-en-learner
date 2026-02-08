@@ -2,6 +2,7 @@
 from functools import lru_cache
 from backend.services.meaning_service import MeaningService
 from backend.core.config import get_settings
+from backend.services.phonetic_service import PhoneticService
 
 @lru_cache()
 def get_meaning_service() -> MeaningService:
@@ -12,7 +13,14 @@ def get_meaning_service() -> MeaningService:
     print("🔧 Initializing MeaningService (should see this only once)")
     return MeaningService()
 
+@lru_cache()
+def get_phonetic_service() -> PhoneticService:  # NEW
+    """Singleton PhoneticService"""
+    print("🔤 Initializing PhoneticService singleton")
+    return PhoneticService()
+
 # Optional: Add more dependencies
 @lru_cache()
 def get_settings_dependency():
     return get_settings()
+

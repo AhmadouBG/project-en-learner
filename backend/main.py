@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.core.config import get_settings
 from backend.api.routes.api_meaning import router as meaning_router
-
+from backend.api.routes.api_phonetic import router as phonetic_router  # NEW
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
@@ -44,6 +44,7 @@ async def shutdown_event():
 
 # Routes
 app.include_router(meaning_router)
+app.include_router(phonetic_router) 
 
 
 
@@ -52,7 +53,12 @@ async def root():
     return {
         "message": "TTS Learning Extension API",
         "version": settings.APP_VERSION,
-        "docs": "/docs" if settings.DEBUG else None
+        "endpoints": {
+            "meaning": "/api/meaning",
+            "phonetics": "/api/phonetics",  # NEW
+            "docs": "/docs" if settings.DEBUG else None
+        }
+    
     }
 
 if __name__ == "__main__":
