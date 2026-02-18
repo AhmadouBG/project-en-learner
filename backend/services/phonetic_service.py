@@ -1,15 +1,12 @@
-# backend/services/phonetic_service.py - NEW FILE
+# backend/services/phonetic_service.py - REFACTORED VERSION
 
 import logging
 import re
 from typing import List, Dict
-from google import genai
-import json
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
+import eng_to_ipa as ipa
 
 from backend.core.config import get_settings
-from backend.core.exceptions import ExternalServiceError, ValidationError
+from backend.core.exceptions import ValidationError
 from backend.api.schemas.api_schemas import PhoneticsResponse, PhoneticWord
 
 logger = logging.getLogger(__name__)
@@ -17,36 +14,14 @@ logger = logging.getLogger(__name__)
 class PhoneticService:
     """
     Service for generating phonetic transcriptions
-    Uses Gemini AI for IPA generation
+    Uses eng_to_ipa library (fast, local, reliable)
     """
     
     def __init__(self):
         logger.info("🔤 Initializing PhoneticService...")
         self.settings = get_settings()
-        self._initialize_gemini()
         self.cache = {}  # Cache phonetics
-        logger.info("✅ PhoneticService ready")
-    
-    def _initialize_gemini(self):
-        """Initialize Gemini API"""
-        try:
-            print("🔧 Initializing Gemini API...")
-            api_key = getattr(self.settings, "API_KEY_GEMINI", None)
-            if not api_key:
-                raise ValueError("GEMINI API key (API_KEY_GEMINI) not configured")
-            try:
-                print(f"🔑 Using API Key: {api_key[:10]}...")
-            except Exception:
-                # safe-print in case key is not a string
-                print("🔑 Using API Key: <redacted>")
-            self.client =genai.Client(api_key=api_key)
-            logger.info("✅ Gemini API configured for phonetics")
-        except Exception as e:
-            logger.error(f"❌ Gemini init failed: {e}")
-            raise ExternalServiceError(
-                "Failed to initialize AI service",
-                "Gemini"
-            )
+        logger.info("✅ PhoneticService ready (using eng_to_ipa)")
     
     async def get_phonetics(
         self, 
@@ -71,32 +46,27 @@ class PhoneticService:
         text = text.strip()
         logger.info(f"🔤 Getting phonetics for: {text[:50]}...")
         
-        try:
-            # Split into words
-            words = self._extract_words(text)
-            
-            # Get phonetics for each word
-            phonetic_words = []
-            for word in words:
-                phonetic_data = await self._get_word_phonetics(
-                    word,
-                    include_ipa,
-                    include_syllables
-                )
-                phonetic_words.append(phonetic_data)
-            
-            result = PhoneticsResponse(
-                text=text,
-                words=phonetic_words,
-                word_count=len(phonetic_words)
+        # Split into words
+        words = self._extract_words(text)
+        
+        # Get phonetics for each word
+        phonetic_words = []
+        for word in words:
+            phonetic_data = self._get_word_phonetics(
+                word,
+                include_ipa,
+                include_syllables
             )
-            
-            logger.info(f"✅ Phonetics generated for {len(phonetic_words)} words")
-            return result
-            
-        except Exception as e:
-            logger.error(f"❌ Error getting phonetics: {e}")
-            raise ExternalServiceError(str(e), "PhoneticService")
+            phonetic_words.append(phonetic_data)
+        
+        result = PhoneticsResponse(
+            text=text,
+            words=phonetic_words,
+            word_count=len(phonetic_words)
+        )
+        
+        logger.info(f"✅ Phonetics generated for {len(phonetic_words)} words")
+        return result
     
     def _extract_words(self, text: str) -> List[str]:
         """Extract words from text"""
@@ -104,151 +74,144 @@ class PhoneticService:
         words = re.findall(r'\b[a-zA-Z]+\b', text)
         return [w.lower() for w in words if w]
     
-    async def _get_word_phonetics(
+    def _get_word_phonetics(
         self,
         word: str,
         include_ipa: bool,
         include_syllables: bool
     ) -> PhoneticWord:
-        """Get phonetic data for a single word"""
+        """Get phonetic data for a single word using eng_to_ipa"""
         
         # Check cache
         cache_key = f"{word}_{include_ipa}_{include_syllables}"
         if cache_key in self.cache:
-            logger.info(f"💾 Cache hit for: {word}")
+            logger.debug(f"💾 Cache hit for: {word}")
             return self.cache[cache_key]
         
         try:
-            # Build prompt
-            prompt = self._build_phonetic_prompt(word, include_ipa, include_syllables)
+            # Get IPA transcription
+            ipa_text = ""
+            if include_ipa:
+                ipa_text = ipa.convert(word)
+                # eng_to_ipa returns the word itself if not found
+                # Add slashes for standard IPA notation
+                if ipa_text and ipa_text != word:
+                    ipa_text = f"/{ipa_text}/"
+                else:
+                    # Fallback: simple phonetic
+                    ipa_text = f"/{word}/"
             
-            # Call Gemini
-            response = await self._call_gemini(prompt)
+            # Get syllables
+            syllables = []
+            stress_pattern = None
             
-            # Parse response
-            phonetic_data = self._parse_phonetic_response(
-                response,
-                word,
-                include_ipa,
-                include_syllables
+            if include_syllables:
+                syllables = self._split_syllables(word, ipa_text)
+                stress_pattern = self._detect_stress(syllables, ipa_text)
+            
+            # Create phonetic word
+            phonetic_data = PhoneticWord(
+                word=word,
+                ipa=ipa_text,
+                syllables=syllables if syllables else [word],
+                stress_pattern=stress_pattern
             )
             
             # Cache result
             self.cache[cache_key] = phonetic_data
             
+            logger.debug(f"✅ Generated phonetics for '{word}': {ipa_text}")
+            
             return phonetic_data
             
         except Exception as e:
-            logger.warning(f"⚠️ Error for word '{word}': {e}", exc_info=True)
-            # Return basic data
+            logger.warning(f"⚠️ Error for word '{word}': {e}")
+            # Return basic fallback
             return PhoneticWord(
                 word=word,
-                ipa="",
+                ipa=f"/{word}/",
                 syllables=[word],
-                stress_pattern=None
+                stress_pattern="1"
             )
     
-    def _build_phonetic_prompt(
-        self,
-        word: str,
-        include_ipa: bool,
-        include_syllables: bool
-    ) -> str:
-        """Build prompt for Gemini"""
+    def _split_syllables(self, word: str, ipa_text: str) -> List[str]:
+        """
+        Split word into syllables
+        Simple algorithm based on vowel patterns
+        """
+        # Remove IPA slashes if present
+        clean_ipa = ipa_text.strip('/') if ipa_text else word
         
-        prompt = f"""You are a phonetics expert.
-
-Return ONLY valid JSON. NO markdown, NO explanation.
-
-Word: "{word}"
-
-Format:
-{{
-  "word": "{word}",
-  "ipa": "/IPA transcription here/",
-  "syllables": ["syl", "la", "bles"],
-  "stress_pattern": "010" (0=unstressed, 1=stressed)
-}}
-
-Requirements:
-- IPA: Use International Phonetic Alphabet notation
-- Syllables: Break word into syllables
-- Stress: Mark stressed syllables (1) and unstressed (0)
-"""
+        # Common vowel sounds in IPA
+        vowels = 'aeiouæɑɔəɛɪʊʌAEIOU'
         
-        return prompt
+        # Simple syllable splitting
+        syllables = []
+        current_syllable = ""
+        
+        for i, char in enumerate(word):
+            current_syllable += char
+            
+            # Check if current char is vowel
+            is_vowel = char.lower() in vowels
+            
+            # Check if next char is consonant (end of syllable)
+            if is_vowel and i < len(word) - 1:
+                next_char = word[i + 1]
+                if next_char.lower() not in vowels:
+                    # Check if there are more vowels ahead
+                    remaining = word[i + 2:]
+                    if any(c.lower() in vowels for c in remaining):
+                        syllables.append(current_syllable)
+                        current_syllable = ""
+        
+        # Add remaining
+        if current_syllable:
+            syllables.append(current_syllable)
+        
+        # If no syllables found, return whole word
+        if not syllables:
+            syllables = [word]
+        
+        return syllables
     
-    def _parse_phonetic_response(
-        self,
-        response: str,
-        word: str,
-        include_ipa: bool,
-        include_syllables: bool
-    ) -> PhoneticWord:
-        """Parse Gemini response"""
+    def _detect_stress(self, syllables: List[str], ipa_text: str) -> str:
+        """
+        Detect stress pattern
+        Simple heuristic: first syllable stressed for short words
+        """
+        if not syllables or len(syllables) == 0:
+            return "1"
         
-        try:
-            logger.debug(f"Raw Gemini response for '{word}': {response[:200]}")
-            # Clean response
-            clean = response.strip()
-            if clean.startswith("```json"):
-                clean = clean[7:]
-            if clean.startswith("```"):
-                clean = clean[3:]
-            if clean.endswith("```"):
-                clean = clean[:-3]
-            clean = clean.strip()
-            logger.debug(f"Cleaned response for '{word}': {clean[:200]}")
-            
-            # Parse JSON
-            data = json.loads(clean)
-            logger.debug(f"Parsed JSON for '{word}': {data}")
-            
-            return PhoneticWord(
-                word=word,
-                ipa=data.get("ipa", "") if include_ipa else "",
-                syllables=data.get("syllables", [word]) if include_syllables else [],
-                stress_pattern=data.get("stress_pattern")
-            )
-            
-        except json.JSONDecodeError as e:
-            logger.warning(f"JSON parse failed for '{word}': {e}")
-            # Fallback
-            return PhoneticWord(
-                word=word,
-                ipa="",
-                syllables=[word],
-                stress_pattern=None
-            )
+        # Check IPA for stress markers (ˈ or ˌ)
+        if ipa_text and 'ˈ' in ipa_text:
+            # Has primary stress marker
+            # Try to determine which syllable
+            # This is simplified - just mark first as stressed
+            return "1" + "0" * (len(syllables) - 1)
+        
+        # Default stress patterns
+        if len(syllables) == 1:
+            return "1"
+        elif len(syllables) == 2:
+            # First syllable usually stressed in English
+            return "10"
+        else:
+            # For longer words, stress usually on first or second syllable
+            # This is a simplification
+            return "1" + "0" * (len(syllables) - 1)
     
     def get_cache_stats(self) -> Dict:
         """Get cache statistics"""
         return {
             "cached_words": len(self.cache),
             "cache_size_bytes": sum(
-                len(str(v)) for v in self.cache.values()
+                len(str(v.dict())) for v in self.cache.values()
             )
         }
-    async def _call_gemini(self, prompt: str) -> str:
-        """
-        Call Gemini API - synchronous API wrapped in async
-        """
-        try:
-            # Run blocking call in thread pool
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: self.client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt
-                )
-            )
-            logger.debug(f"Gemini raw response: {response}")
-            logger.debug(f"Gemini response.text: {response.text}")
-            return response.text
-        except Exception as e:
-            logger.error(f"Gemini API error: {e}", exc_info=True)
-            raise ExternalServiceError(
-                message="AI service temporarily unavailable",
-                service_name="Gemini"
-            )
+    
+    def clear_cache(self):
+        """Clear phonetics cache"""
+        old_size = len(self.cache)
+        self.cache.clear()
+        logger.info(f"🧹 Cleared phonetics cache ({old_size} entries)")

@@ -1,20 +1,34 @@
-// Attempt to dynamically load MeaningView to avoid static import errors in content script modules
+// src/components/Panel/Panel.js - UPDATE
+
+// Attempt to dynamically load MeaningView
 let showMeaning = (text) => {
   console.warn("MeaningView not loaded yet", text);
 };
+
+// NEW: Load PhoneticView
+let phoneticView = null;
+
 (async () => {
   try {
-    const mod = await import(chrome.runtime.getURL("src/components/MeaningView/MeaningView.js"));
-    if (mod && typeof mod.showMeaning === "function") {
-      showMeaning = mod.showMeaning;
-      console.log("MeaningView loaded dynamically");
+    // Load MeaningView (existing)
+    const meaningMod = await import(chrome.runtime.getURL("src/components/MeaningView/MeaningView.js"));
+    if (meaningMod && typeof meaningMod.showMeaning === "function") {
+      showMeaning = meaningMod.showMeaning;
+      console.log("✅ MeaningView loaded");
+    }
+
+    // NEW: Load PhoneticView
+    const phoneticMod = await import(chrome.runtime.getURL("src/components/PhoneticView/PhoneticView.js"));
+    if (phoneticMod && phoneticMod.phoneticView) {
+      phoneticView = phoneticMod.phoneticView;
+      console.log("✅ PhoneticView loaded");
     }
   } catch (err) {
-    console.error("Failed to dynamically import MeaningView:", err);
+    console.error("Failed to load modules:", err);
   }
 })();
 
-// Load external CSS file for the panel
+// Load Panel CSS (existing)
 const link = document.createElement("link");
 link.rel = "stylesheet";
 link.href = chrome.runtime.getURL("src/components/Panel/Panel.css");
@@ -27,7 +41,7 @@ let selectedText = "";
 const panelRoot = document.createElement("div");
 panelRoot.id = "ai-teaching-panel-root";
 
-// Create toggle button immediately (first element visible)
+// Toggle button (existing)
 const toggleBtn = document.createElement("button");
 toggleBtn.id = "ai-panel-toggle";
 toggleBtn.innerHTML = `
@@ -38,34 +52,36 @@ toggleBtn.innerHTML = `
   </svg>
 `;
 document.body.appendChild(toggleBtn);
-console.log("Toggle button created");
 
 toggleBtn.addEventListener("click", () => {
   panelRoot.classList.toggle("active");
   toggleBtn.classList.toggle("active");
 });
 
-// Load Panel.html asynchronously
+// Load Panel.html
 const panelHtmlUrl = chrome.runtime.getURL("src/components/Panel/Panel.html");
-console.log("Attempting to fetch Panel.html from:", panelHtmlUrl);
 
 fetch(panelHtmlUrl)
   .then(res => {
-    console.log("Panel.html response status:", res.status);
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     return res.text();
   })
   .then(html => {
-    console.log("Panel.html fetched successfully, length:", html.length);
     panelRoot.innerHTML = html;
     document.body.appendChild(panelRoot);
-    console.log("Panel loaded and appended");
+    console.log("✅ Panel loaded");
 
     bindPanelEvents();
+    
+    // NEW: Initialize PhoneticView after panel is loaded
+    if (phoneticView) {
+      phoneticView.init();
+      console.log('✅ PhoneticView initialized');
+
+    }
   })
   .catch(err => {
-    console.error("Failed to load Panel.html:", err);
-    console.error("Tried URL:", panelHtmlUrl);
+    console.error("❌ Failed to load Panel.html:", err);
   });
 
 function bindPanelEvents() {
@@ -74,7 +90,7 @@ function bindPanelEvents() {
   const closePanelBtn = document.getElementById("close-panel-btn");
 
   if (!contentInput || !getMeaningBtn || !closePanelBtn) {
-    console.error("Panel elements not found");
+    console.error("❌ Panel elements not found");
     return;
   }
 
@@ -90,42 +106,55 @@ function bindPanelEvents() {
       selectedText = text;
       contentInput.value = text;
       panelRoot.classList.add("active");
+      
+      // NEW: Load phonetics when text selected
+      if (phoneticView) {
+        phoneticView.loadPhonetics(text);
+      }
     }
   });
 
-    contentInput.addEventListener("input", e => {
-        selectedText = e.target.value;
-    });
-
-    // intent → MeaningView
-    getMeaningBtn.addEventListener("click", () => {
-        if (!selectedText) {
-        alert("Please select some text first");
-        return;
-        }
-        showMeaning(selectedText);
-    });
-
-   // Fix the ESC key listener
-   document.addEventListener('keydown', (e) => {
-     if (e.key === 'Escape') {
-        
-        // Close main panel
-        if (panelRoot.classList.contains('active')) {
-        panelRoot.classList.remove('active');
-        toggleBtn.classList.remove('active');
-        }
+  // Input change
+  contentInput.addEventListener("input", e => {
+    selectedText = e.target.value;
+    
+    // NEW: Update phonetics when typing
+    if (phoneticView && selectedText.trim()) {
+      phoneticView.loadPhonetics(selectedText);
     }
-    });
+  });
 
-  
-  // Close panel when clicking outside
-    document.addEventListener('mousedown', (e) => {
-      if (panelRoot.classList.contains('active') && !panelRoot.contains(e.target) && 
+  // Get meaning button
+  getMeaningBtn.addEventListener("click", () => {
+    if (!selectedText) {
+      alert("Please select some text first");
+      return;
+    }
+    
+    // Show meaning (existing)
+    showMeaning(selectedText);
+    
+    // NEW: Also load phonetics
+    if (phoneticView) {
+      phoneticView.loadPhonetics(selectedText);
+    }
+  });
+
+  // ESC key (existing)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && panelRoot.classList.contains('active')) {
+      panelRoot.classList.remove('active');
+      toggleBtn.classList.remove('active');
+    }
+  });
+
+  // Click outside (existing)
+  document.addEventListener('mousedown', (e) => {
+    if (panelRoot.classList.contains('active') && 
+        !panelRoot.contains(e.target) && 
         !toggleBtn.contains(e.target)) {
-
-        panelRoot.classList.remove('active');
-        toggleBtn.classList.remove('active');
-      }
-   });
+      panelRoot.classList.remove('active');
+      toggleBtn.classList.remove('active');
+    }
+  });
 }
