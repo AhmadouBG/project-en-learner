@@ -73,12 +73,16 @@ fetch(panelHtmlUrl)
 
     bindPanelEvents();
     
-    // NEW: Initialize PhoneticView after panel is loaded
-    if (phoneticView) {
-      phoneticView.init();
-      console.log('✅ PhoneticView initialized');
-
-    }
+    // ✅ Wait for DOM to be ready
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // Now DOM is definitely ready
+        if (phoneticView) {
+          const success = phoneticView.init();
+          console.log('PhoneticView init:', success);
+        }
+      });
+    });
   })
   .catch(err => {
     console.error("❌ Failed to load Panel.html:", err);
@@ -106,6 +110,10 @@ function bindPanelEvents() {
       selectedText = text;
       contentInput.value = text;
       panelRoot.classList.add("active");
+      
+      setTimeout(() => {
+        window.getSelection().removeAllRanges();
+      }, 1000); // Wait 100ms, then clear selection
       
       // NEW: Load phonetics when text selected
       if (phoneticView) {

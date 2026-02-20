@@ -13,9 +13,9 @@ class PhoneticView {
     this.ipaToggle = null;
     this.currentWords = [];
     this.showIPA = true;
+    this.initialized = false; // Track initialization
   }
 
-  // ADD THIS METHOD
   ensureInitialized() {
     if (!this.initialized) {
       return this.init();
@@ -37,6 +37,7 @@ class PhoneticView {
       return false;
     }
     
+    this.initialized = true; // Mark as initialized
     // Setup event listeners
     this.setupEventListeners();
     
@@ -54,31 +55,19 @@ class PhoneticView {
       this.toggleIPA(this.showIPA);
     });
 
-    console.log('🎯 Setting up event listeners...');
-  console.log('wordsContainer:', this.wordsContainer);
-  console.log('Has click listener?', this.wordsContainer.onclick);
+    this.wordsContainer.addEventListener('click', (e) => {
+      const button = e.target.closest('.word-btn');
+      if (!button) return;
 
-  // Word button clicks
-  this.wordsContainer.addEventListener('click', (e) => {
-    console.log('🖱️ CLICK DETECTED on wordsContainer');
-    console.log('Target:', e.target);
-    
-    const wordBtn = e.target.closest('.word-btn');
-    console.log('Found word button?', wordBtn);
-    
-    if (wordBtn) {
-      console.log('✅ Processing click on:', wordBtn.dataset.word);
-      const word = wordBtn.dataset.word;
+      const word = button.dataset.word;
       this.pronounceWord(word);
-      
-      wordBtn.classList.add('playing');
-      setTimeout(() => wordBtn.classList.remove('playing'), 1000);
-    } else {
-      console.log('❌ No word button found');
-    }
-  });
+
+      button.classList.add('playing');
+      setTimeout(() => button.classList.remove('playing'), 800);
+    });
+    
+    console.log('✅ Event listeners attached');
   
-  console.log('✅ Event listeners set up');
   }
 
   /**
@@ -123,9 +112,13 @@ class PhoneticView {
       this.currentWords = data.words || [];
       this.renderWords(this.currentWords);
 
+      
+      console.log('✅ Phonetics ready');
+
     } catch (error) {
       console.error('❌ Error loading phonetics:', error);
       this.showError('Failed to load phonetics');
+      this.isReady = false;
     }
   }
 
@@ -154,25 +147,9 @@ class PhoneticView {
       const button = this.createWordButton(wordData);
       this.wordsContainer.appendChild(button);
     });
-
-    const buttons = this.wordsContainer.querySelectorAll('.word-btn');
-    buttons.forEach(button => {
-        button.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const word = button.dataset.word;
-        console.log(`🔊 Clicking: ${word}`);
-        
-        this.pronounceWord(word);
-        
-        button.classList.add('playing');
-        setTimeout(() => button.classList.remove('playing'), 1000);
-        });
-    });
-    console.log(`✅ Rendered ${words.length} phonetic words`);
-  }
-
+  
+  console.log(`✅ Rendered ${words.length} phonetic words`);
+}
   /**
    * Create word button element
    */
@@ -226,30 +203,15 @@ class PhoneticView {
         synth.cancel();
     }
 
-    // Wait a moment for cancel to complete
-    await new Promise(resolve => setTimeout(resolve, 100));
-
     // Create utterance
     const utterance = new SpeechSynthesisUtterance(word);
     utterance.lang = 'en-US';
     utterance.rate = 0.8;
     utterance.pitch = 1.0;
-
-    // Add error handling
-    utterance.onerror = (event) => {
-        console.error('Speech error:', event.error);
-        
-        // Retry once on error
-        if (event.error === 'interrupted') {
-        setTimeout(() => synth.speak(utterance), 300);
-        }
-    };
-
     // Speak
     synth.speak(utterance);
     console.log(`🔊 Pronouncing: ${word}`);
-    synth.pause();           // Pause
-  //setTimeout(() => synth.resume(), 100); // Resume after short delay
+    
   }
 
   /**
@@ -272,9 +234,8 @@ class PhoneticView {
     this.wordsContainer.classList.remove('loading');
   }
 
-  /**
-   * Show error state
-   */
+
+   // Show error state
   showError(message) {
     this.wordsContainer.innerHTML = `
       <div class="empty-state" style="color: #dc3545;">⚠️ ${message}</div>
@@ -282,9 +243,8 @@ class PhoneticView {
     this.wordsContainer.classList.remove('loading');
   }
 
-  /**
-   * Clear phonetics
-   */
+  
+  // Clear phonetics   
   clear() {
     this.currentWords = [];
     this.showEmpty();
