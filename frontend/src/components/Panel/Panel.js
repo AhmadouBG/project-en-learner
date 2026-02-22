@@ -23,6 +23,13 @@ let phoneticView = null;
       phoneticView = phoneticMod.phoneticView;
       console.log("✅ PhoneticView loaded");
     }
+
+    // NEW: Load MediaPlayer
+    const mediaPlayerMod = await import(chrome.runtime.getURL("src/components/MediaPlayer/MediaPlayer.js"));
+    if (mediaPlayerMod && mediaPlayerMod.mediaPlayer) {
+      mediaPlayer = mediaPlayerMod.mediaPlayer;
+      console.log("✅ MediaPlayer loaded");
+    }
   } catch (err) {
     console.error("Failed to load modules:", err);
   }

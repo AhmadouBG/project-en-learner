@@ -4,7 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.core.config import get_settings
 from backend.api.routes.api_meaning import router as meaning_router
-from backend.api.routes.api_phonetic import router as phonetic_router  # NEW
+from backend.api.routes.api_phonetic import router as phonetic_router
+from backend.api.routes.api_audio import router as audio_router  
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
@@ -45,6 +47,7 @@ async def shutdown_event():
 # Routes
 app.include_router(meaning_router)
 app.include_router(phonetic_router) 
+app.include_router(audio_router)  # NEW
 
 
 
