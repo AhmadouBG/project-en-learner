@@ -5,8 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.core.config import get_settings
 from backend.api.routes.api_meaning import router as meaning_router
 from backend.api.routes.api_phonetic import router as phonetic_router
-from backend.api.routes.api_audio import router as audio_router  
-
+from backend.api.routes.api_audio import router as audio_router
+from contextlib import asynccontextmanager
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
@@ -17,8 +17,21 @@ logger = logging.getLogger(__name__)
 # Get settings
 settings = get_settings()
 
-# Create app
+# Startup event
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("🚀 Application starting...")
+    logger.info(f"📝 App: {settings.APP_NAME} v{settings.APP_VERSION}")
+    logger.info(f"🔧 Debug mode: {settings.DEBUG}")
+    yield
+# Shutdown event
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("👋 Application shutting down...")
+    yield
+
 app = FastAPI(
+    lifespan=lifespan,
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     docs_url="/docs" if settings.DEBUG else None
@@ -32,18 +45,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Startup event
-@app.on_event("startup")
-async def startup_event():
-    logger.info("🚀 Application starting...")
-    logger.info(f"📝 App: {settings.APP_NAME} v{settings.APP_VERSION}")
-    logger.info(f"🔧 Debug mode: {settings.DEBUG}")
-# Shutdown event
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("👋 Application shutting down...")
-
 # Routes
 app.include_router(meaning_router)
 app.include_router(phonetic_router) 
@@ -58,7 +59,8 @@ async def root():
         "version": settings.APP_VERSION,
         "endpoints": {
             "meaning": "/api/meaning",
-            "phonetics": "/api/phonetics",  # NEW
+            "phonetics": "/api/phonetics",
+            "audio": "/api/audio/generate",
             "docs": "/docs" if settings.DEBUG else None
         }
     

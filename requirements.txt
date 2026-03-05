@@ -3,8 +3,16 @@ uvicorn[standard]==0.22.0
 requests==2.31.0
 pytest==7.4.0
 numpy
-transformers
+transformers==5.0.0
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 google-genai>=0.1.0
 eng-to-ipa==0.0.2
+# PyTorch and audio dependencies (CPU builds)
+# install with the pytorch CPU index, e.g.:
+#   pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.8.0+cpu
+torchaudio==2.8.0
+torchvision==0.23.0+cpu
+encodec
+scipy

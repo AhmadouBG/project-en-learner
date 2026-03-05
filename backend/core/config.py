@@ -1,6 +1,13 @@
 # backend/core/config.py
 from functools import lru_cache
-from pydantic_settings import BaseSettings, SettingsConfigDict
+try:
+    from pydantic_settings import BaseSettings, SettingsConfigDict
+except ImportError as e:
+    raise ImportError(
+        "Missing dependency 'pydantic-settings'. Please install it with:"
+        "\n    pip install pydantic-settings"
+    ) from e
+
 from pydantic import Field
 
 class Settings(BaseSettings):
@@ -24,6 +31,12 @@ class Settings(BaseSettings):
 
     # API Keys 
     API_KEY_GEMINI: str 
+    # Use the transformer-based BarkModel implementation instead of the
+    # lightweight `bark` package. When enabled the service will lazily load
+    # `ml.models.bark_model` (which uses HuggingFace Transformers) and bypass
+    # native torchaudio/encodec dependencies. Set to true in .env when
+    # running on a system with compatible PyTorch (e.g. torch==2.8.0+cpu).
+    USE_TRANSFORMER_BARK: bool = False
     
     # Database (future)
     DATABASE_URL: str = "sqlite+aiosqlite:///./tts_extension.db"

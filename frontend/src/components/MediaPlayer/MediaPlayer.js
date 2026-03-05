@@ -1,334 +1,311 @@
-// src/components/MediaPlayer/MediaPlayer.js - NEW FILE
+// src/components/MediaPlayer/MediaPlayer.js - WITH DELETE
 
 const API_URL = 'http://localhost:8000/api/audio';
 
 class MediaPlayer {
   constructor() {
-    // Audio player
-    this.audioPlayer = null;
-    
-    // Control buttons
+    this.audio = new Audio();
+    this.currentText = null;
+    this.currentFilename = null;
+    this.isLoading = false;
+
     this.playBtn = null;
     this.stopBtn = null;
     this.repeatBtn = null;
     this.volumeSlider = null;
-    this.speedLabel = null;
-    
-    // Settings
-    this.voiceSelect = null;
-    this.languageSelect = null;
-    
-    // State
-    this.currentText = '';
-    this.currentAudioUrl = '';
-    this.isPlaying = false;
-    this.volume = 0.8;
-    this.playbackRate = 1.0;
-    
-    // Bark settings
-    this.voicePreset = 'v2/en_speaker_6';
-    this.language = 'en';
+
+    console.log("✅ MediaPlayer created");
   }
 
-  /**
-   * Initialize media player
-   */
-  init() {
-    console.log('🎵 Initializing MediaPlayer...');
+  init(panelRoot) {
+    console.log("🔧 MediaPlayer init");
     
-    // Get DOM elements
-    this.audioPlayer = document.getElementById('tts-audio-player');
-    this.playBtn = document.getElementById('play-tts-btn');
-    this.stopBtn = document.getElementById('stop-tts-btn');
-    this.repeatBtn = document.getElementById('repeat-tts-btn');
-    this.volumeSlider = document.getElementById('volume-slider');
-    this.speedLabel = document.getElementById('speed-label');
-    this.voiceSelect = document.getElementById('voice-select');
-    this.languageSelect = document.getElementById('language-select');
+    this.playBtn = panelRoot.querySelector("#play-tts-btn");
+    this.stopBtn = panelRoot.querySelector("#stop-tts-btn");
+    this.repeatBtn = panelRoot.querySelector("#repeat-tts-btn");
+    this.volumeSlider = panelRoot.querySelector("#volume-slider");
 
-    if (!this.audioPlayer) {
-      console.error('❌ Audio player element not found');
+    if (!this.playBtn || !this.stopBtn || !this.repeatBtn || !this.volumeSlider) {
+      console.error("❌ Missing DOM elements");
       return false;
     }
 
-    // Setup event listeners
-    this.setupEventListeners();
+    this.playBtn.addEventListener("click", () => this.handlePlay());
+    this.stopBtn.addEventListener("click", () => this.stop());
+    this.repeatBtn.addEventListener("click", () => this.replay());
     
-    // Initialize audio player
-    this.audioPlayer.volume = this.volume;
+    this.volumeSlider.addEventListener("input", (e) => {
+      this.audio.volume = e.target.value / 100;
+    });
+
+    this.audio.onended = () => {
+      console.log("✅ Playback ended");
+      this.setPlayingUI(false);
+    };
+
+    this.audio.onerror = (e) => {
+      console.error("❌ Audio error:", e);
+    };
     
-    console.log('✅ MediaPlayer initialized');
-    return true;
+    this.voiceSelect = panelRoot.querySelector("#voice-select");
+  
+    if (this.voiceSelect) {
+        // ✅ Add extensive logging
+      console.log("🎤 Voice selector found");
+      console.log("   Initial value:", this.voiceSelect.value);
+      
+      this.voiceSelect.addEventListener("change", (e) => {
+        console.log("\n🔔 VOICE CHANGED EVENT");
+        console.log("   Old voice:", this.voicePreset);
+        console.log("   New voice:", e.target.value);
+        
+        this.voicePreset = e.target.value;
+        
+        console.log("   Updated voicePreset:", this.voicePreset);
+        
+        // ✅ CRITICAL: Clear old audio
+        console.log("   Clearing old audio...");
+        this.audio.pause();
+        this.audio.src = "";
+        this.currentFilename = null;
+        //this.currentText = null;  // ✅ Also clear text to force regeneration
+        
+        console.log("   ✅ Old audio cleared");
+      });
+      
+      // Set initial value
+      this.voicePreset = this.voiceSelect.value;
+      console.log("   voicePreset set to:", this.voicePreset);
+    } else {
+      console.error("❌ Voice selector NOT found!");
+    }
   }
 
-  /**
-   * Setup event listeners
-   */
-  setupEventListeners() {
-    // Play button
-    this.playBtn?.addEventListener('click', () => {
-      this.play();
-    });
-
-    // Stop button
-    this.stopBtn?.addEventListener('click', () => {
-      this.stop();
-    });
-
-    // Repeat button
-    this.repeatBtn?.addEventListener('click', () => {
-      this.repeat();
-    });
-
-    // Volume slider
-    this.volumeSlider?.addEventListener('input', (e) => {
-      this.setVolume(e.target.value / 100);
-    });
-
-    // Voice select
-    this.voiceSelect?.addEventListener('change', (e) => {
-      this.voicePreset = e.target.value;
-      console.log('🎤 Voice changed to:', this.voicePreset);
-    });
-
-    // Language select
-    this.languageSelect?.addEventListener('change', (e) => {
-      this.language = e.target.value;
-      console.log('🌐 Language changed to:', this.language);
-    });
-
-    // Audio player events
-    this.audioPlayer.addEventListener('play', () => {
-      this.onPlayStart();
-    });
-
-    this.audioPlayer.addEventListener('pause', () => {
-      this.onPlayPause();
-    });
-
-    this.audioPlayer.addEventListener('ended', () => {
-      this.onPlayEnd();
-    });
-
-    this.audioPlayer.addEventListener('error', (e) => {
-      console.error('❌ Audio error:', e);
-      this.onPlayError(e);
-    });
-
-    this.audioPlayer.addEventListener('timeupdate', () => {
-      this.onTimeUpdate();
-    });
-  }
-
-  /**
-   * Set text to play
-   */
-  setText(text) {
-    this.currentText = text;
-    console.log('📝 Text set:', text);
-  }
-
-  /**
-   * Play audio
-   */
-  async play() {
-    if (!this.currentText) {
-      console.warn('⚠️ No text to play');
+  // ✅ NEW: Delete old audio file from server
+  async deleteOldAudio() {
+    if (!this.currentFilename) {
+      console.log("No old audio to delete");
       return;
     }
 
     try {
-      console.log('▶️ Playing:', this.currentText.substring(0, 50));
+      console.log("🗑️ Deleting old audio:", this.currentFilename);
 
-      // Show loading
-      this.playBtn.disabled = true;
-      this.playBtn.classList.add('loading');
+      const response = await fetch(`${API_URL}/files/${this.currentFilename}`, {
+        method: 'DELETE'
+      });
 
-      // Check if we already have audio for this text
-      if (this.currentAudioUrl && this.audioPlayer.src) {
-        // Just play existing audio
-        await this.audioPlayer.play();
-        return;
+      if (response.ok) {
+        const data = await response.json();
+        console.log("✅ Deleted:", data.message);
+      } else {
+        console.warn("⚠️ Delete failed:", response.status);
       }
 
-      // Generate new audio
-      const audioData = await this.generateAudio(this.currentText);
-      
-      // Set audio source
-      this.currentAudioUrl = audioData.audio_url;
-      this.audioPlayer.src = `${API_URL}${audioData.audio_url}`;
-
-      // Play
-      await this.audioPlayer.play();
-
     } catch (error) {
-      console.error('❌ Error playing audio:', error);
-      this.showError('Failed to play audio');
-    } finally {
-      this.playBtn.disabled = false;
-      this.playBtn.classList.remove('loading');
+      console.error("❌ Delete error:", error);
+      // Don't show error to user, it's not critical
     }
   }
 
-  /**
-   * Stop audio
-   */
-  stop() {
-    console.log('⏹️ Stopping audio');
-    this.audioPlayer.pause();
-    this.audioPlayer.currentTime = 0;
-    this.isPlaying = false;
-    this.updatePlayButton();
+  // ✅ UPDATED: Delete old audio when text changes
+  async setText(text) {
+    if (this.currentText !== text) {
+      console.log("📝 Text changed:");
+      console.log("  From:", this.currentText?.substring(0, 30));
+      console.log("  To:", text?.substring(0, 30));
+      
+      // ✅ Delete old audio file from server
+      await this.deleteOldAudio();
+      
+      // Clear old audio from player
+      this.audio.pause();
+      this.audio.src = "";
+      this.currentFilename = null;
+      this.setPlayingUI(false);
+      
+      console.log("🗑️ Cleared old audio");
+    }
+    
+    this.currentText = text;
   }
 
-  /**
-   * Repeat audio
-   */
-  async repeat() {
-    console.log('🔁 Repeating audio');
-    this.audioPlayer.currentTime = 0;
-    await this.audioPlayer.play();
+  async handlePlay() {
+    console.log("\n🎮 PLAY CLICKED");
+
+    const text = this.currentText || window.getSelection().toString().trim();
+
+    if (!text) {
+      alert("Please select text first");
+      return;
+    }
+
+    if (this.isLoading) {
+      console.warn("⏳ Already loading");
+      return;
+    }
+
+    // Only reuse if text matches AND audio exists
+    const textMatches = this.currentText === text;
+    const hasAudio = this.audio.src && this.audio.readyState >= 3;
+
+    if (textMatches && hasAudio) {
+      console.log("▶️ Playing existing audio");
+      this.play();
+      return;
+    }
+
+    // Generate new
+    console.log("🎙️ Generating new audio");
+    await this.generate(text);
+    
+    if (this.audio.src && this.audio.readyState > 0) {
+      this.play();
+    }
   }
 
-  /**
-   * Set volume (0 to 1)
-   */
-  setVolume(volume) {
-    this.volume = Math.max(0, Math.min(1, volume));
-    this.audioPlayer.volume = this.volume;
-    console.log('🔊 Volume:', Math.round(this.volume * 100) + '%');
-  }
+  async generate(text) {
+    console.log("\n📡 GENERATING");
 
-  /**
-   * Set playback rate
-   */
-  setPlaybackRate(rate) {
-    this.playbackRate = rate;
-    this.audioPlayer.playbackRate = rate;
-    this.speedLabel.textContent = `${rate.toFixed(1)}×`;
-    console.log('⚡ Speed:', rate);
-  }
+    try {
+      this.isLoading = true;
+      this.setLoadingUI(true);
+      
+      // ✅ Delete old audio file before generating new one
+      await this.deleteOldAudio();
+      
+      // Clear audio player
+      this.audio.pause();
+      this.audio.src = "";
 
-  /**
-   * Generate audio using Bark
-   */
-  async generateAudio(text) {
-    console.log('🎙️ Generating audio with Bark...');
-
-    const response = await fetch(`${API_URL}/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      const requestBody = {
         text: text,
         voice_preset: this.voicePreset
+      };
+      const response = await fetch(`${API_URL}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody)
+      }); 
+      
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+      const filename = data.audio_url.split('/').pop();
+
+      console.log("📄 New audio file:", filename);
+
+      this.currentText = text;
+      this.currentFilename = filename;
+
+      const audioUrl = `http://localhost:8000/api/audio/files/${filename}`;
+      console.log("🔊 Audio URL:", audioUrl);
+
+      this.audio.src = audioUrl;
+
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("Timeout")), 10000);
+
+        this.audio.addEventListener('canplaythrough', () => {
+          console.log("✅ Audio loaded");
+          clearTimeout(timeout);
+          resolve();
+        }, { once: true });
+
+        this.audio.addEventListener('error', (e) => {
+          console.error("❌ Load error");
+          clearTimeout(timeout);
+          reject(new Error("Load failed"));
+        }, { once: true });
+
+        this.audio.load();
+      });
+
+      console.log("✅ Generation complete");
+
+    } catch (error) {
+      console.error("❌ Error:", error);
+      alert("Failed: " + error.message);
+    } finally {
+      this.isLoading = false;
+      this.setLoadingUI(false);
+    }
+  }
+
+  play() {
+    console.log("\n▶️ PLAY");
+
+    if (!this.audio.src) {
+      alert("No audio");
+      return;
+    }
+
+    if (this.audio.readyState < 3) {
+      alert("Still loading");
+      return;
+    }
+
+    this.audio.currentTime = 0;
+    this.audio.play()
+      .then(() => {
+        console.log("✅ Playing!");
+        this.setPlayingUI(true);
       })
-    });
+      .catch(err => {
+        console.error("❌ Error:", err);
+        alert("Play failed: " + err.message);
+      });
+  }
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+  stop() {
+    console.log("⏹️ Stop");
+    this.audio.pause();
+    this.audio.currentTime = 0;
+    this.setPlayingUI(false);
+  }
+
+  replay() {
+    console.log("🔁 Replay");
+    if (!this.audio.src) {
+      alert("No audio");
+      return;
     }
-
-    const data = await response.json();
-    console.log('✅ Audio generated:', data);
-
-    return data;
+    this.audio.currentTime = 0;
+    this.audio.play()
+      .then(() => this.setPlayingUI(true))
+      .catch(err => alert("Failed: " + err.message));
   }
 
-  /**
-   * Event: Play started
-   */
-  onPlayStart() {
-    console.log('▶️ Playback started');
-    this.isPlaying = true;
-    this.updatePlayButton();
-  }
-
-  /**
-   * Event: Play paused
-   */
-  onPlayPause() {
-    console.log('⏸️ Playback paused');
-    this.isPlaying = false;
-    this.updatePlayButton();
-  }
-
-  /**
-   * Event: Play ended
-   */
-  onPlayEnd() {
-    console.log('✅ Playback finished');
-    this.isPlaying = false;
-    this.updatePlayButton();
-  }
-
-  /**
-   * Event: Play error
-   */
-  onPlayError(error) {
-    console.error('❌ Playback error:', error);
-    this.isPlaying = false;
-    this.updatePlayButton();
-    this.showError('Audio playback failed');
-  }
-
-  /**
-   * Event: Time update
-   */
-  onTimeUpdate() {
-    // Could add progress bar here
-    const current = this.audioPlayer.currentTime;
-    const duration = this.audioPlayer.duration;
-    
-    if (duration > 0) {
-      const percent = (current / duration) * 100;
-      // Update progress bar if you have one
-    }
-  }
-
-  /**
-   * Update play button state
-   */
-  updatePlayButton() {
-    if (this.isPlaying) {
-      // Change to pause icon
-      this.playBtn.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-        </svg>
-      `;
-      this.playBtn.title = 'Pause';
+  setLoadingUI(state) {
+    if (!this.playBtn) return;
+    this.playBtn.disabled = state;
+    if (state) {
+      this.playBtn.classList.add("loading");
     } else {
-      // Change to play icon
-      this.playBtn.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z"/>
-        </svg>
-      `;
-      this.playBtn.title = 'Play';
+      this.playBtn.classList.remove("loading");
     }
   }
 
-  /**
-   * Show error message
-   */
-  showError(message) {
-    console.error('❌', message);
-    // Could show toast notification here
+  setPlayingUI(state) {
+    if (!this.playBtn) return;
+    if (state) {
+      this.playBtn.classList.add("active");
+    } else {
+      this.playBtn.classList.remove("active");
+    }
   }
 
-  /**
-   * Clear current audio
-   */
-  clear() {
-    this.stop();
-    this.currentText = '';
-    this.currentAudioUrl = '';
-    this.audioPlayer.src = '';
+  // ✅ NEW: Cleanup when panel closes
+  async cleanup() {
+    console.log("🧹 Cleanup");
+    await this.deleteOldAudio();
+    this.audio.pause();
+    this.audio.src = "";
+    this.currentText = null;
+    this.currentFilename = null;
   }
 }
 
-// Create singleton instance
 const mediaPlayer = new MediaPlayer();
-
-// Export for use in Panel.js
 export { mediaPlayer };

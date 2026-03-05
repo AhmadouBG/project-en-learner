@@ -1,6 +1,6 @@
 # backend/api/dependencies.py
 from functools import lru_cache
-from backend.services.bark_service import BarkService
+from backend.services.coqui_tts_service import CoquiTTSService
 from backend.services.meaning_service import MeaningService
 from backend.core.config import get_settings
 from backend.services.phonetic_service import PhoneticService
@@ -21,9 +21,9 @@ def get_phonetic_service() -> PhoneticService:  # NEW
     return PhoneticService()
 
 @lru_cache()
-def get_bark_service() -> BarkService:  # NEW
-    """Singleton BarkService"""
-    return BarkService()
+def get_coqui_tts_service() -> CoquiTTSService:  # NEW
+    """Singleton CoquiService for audio generation"""
+    return CoquiTTSService()
 # Optional: Add more dependencies
 @lru_cache()
 def get_settings_dependency():

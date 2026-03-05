@@ -3,7 +3,6 @@ from aiohttp import request
 from fastapi.testclient import TestClient
 
 # from api_meaning import get_meaning
-from backend.main import app
 from backend.services.meaning_service import MeaningService
 from routes.api_meaning import get_meaning
 from schemas import MeaningResponse

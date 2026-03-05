@@ -1,28 +1,25 @@
-# backend/api/routes/audio.py - NEW FILE
+# backend/api/routes/audio.py - UPDATE
 
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import FileResponse
 from pathlib import Path
 
 from backend.api.schemas.api_schemas import AudioGenerateRequest, AudioGenerateResponse
-from backend.api.dependencies import get_bark_service
-from backend.services.bark_service import BarkService
+from backend.api.dependencies import get_coqui_tts_service  # ✅ CHANGED
+from backend.services.coqui_tts_service import CoquiTTSService  # ✅ CHANGED
 
 router = APIRouter(prefix="/api/audio", tags=["Audio"])
 
 @router.post("/generate", response_model=AudioGenerateResponse)
 async def generate_audio(
     request: AudioGenerateRequest,
-    service: BarkService = Depends(get_bark_service)
+    service: CoquiTTSService = Depends(get_coqui_tts_service)  # ✅ CHANGED
 ) -> AudioGenerateResponse:
     """
-    Generate audio from text using Bark TTS
+    Generate audio from text using Coqui TTS
     
     - **text**: Text to convert to speech (max 500 chars)
-    - **voice_preset**: Voice style (default: v2/en_speaker_6)
-    
-    Available voice presets:
-    - v2/en_speaker_0 to v2/en_speaker_9 (English speakers)
+    - **voice_preset**: Voice style (default)
     """
     try:
         return await service.generate_audio(
@@ -34,11 +31,7 @@ async def generate_audio(
 
 @router.get("/files/{filename}")
 async def get_audio_file(filename: str):
-    """
-    Get generated audio file
-    
-    - **filename**: Audio filename (e.g., audio_123456.wav)
-    """
+    """Get generated audio file"""
     filepath = Path("audio_files") / filename
     
     if not filepath.exists():
@@ -47,25 +40,30 @@ async def get_audio_file(filename: str):
     return FileResponse(
         filepath,
         media_type="audio/wav",
-        filename=filename
+        filename=filename,
+        headers={
+            "Access-Control-Allow-Origin": "*"
+        }
     )
+
+@router.delete("/files/{filename}")
+async def delete_audio_file(filename: str):
+    """Delete audio file"""
+    try:
+        filepath = Path("audio_files") / filename
+        
+        if filepath.exists():
+            filepath.unlink()
+            return {"success": True, "message": f"Deleted {filename}"}
+        
+        return {"success": True, "message": "File not found"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/stats")
 async def get_stats(
-    service: BarkService = Depends(get_bark_service)
+    service: CoquiTTSService = Depends(get_coqui_tts_service)
 ):
     """Get audio generation statistics"""
     return service.get_cache_stats()
-
-@router.post("/cleanup")
-async def cleanup_old_files(
-    max_age_hours: int = 24,
-    service: BarkService = Depends(get_bark_service)
-):
-    """
-    Clean up old audio files
-    
-    - **max_age_hours**: Delete files older than this (default: 24)
-    """
-    deleted = service.clear_old_files(max_age_hours)
-    return {"deleted_files": deleted}

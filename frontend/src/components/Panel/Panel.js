@@ -1,41 +1,13 @@
-// src/components/Panel/Panel.js - UPDATE
+// src/components/Panel/Panel.js - COMPLETE UPDATED VERSION
 
-// Attempt to dynamically load MeaningView
+// Attempt to dynamically load modules
 let showMeaning = (text) => {
   console.warn("MeaningView not loaded yet", text);
 };
-
-// NEW: Load PhoneticView
 let phoneticView = null;
+let mediaPlayer = null;
 
-(async () => {
-  try {
-    // Load MeaningView (existing)
-    const meaningMod = await import(chrome.runtime.getURL("src/components/MeaningView/MeaningView.js"));
-    if (meaningMod && typeof meaningMod.showMeaning === "function") {
-      showMeaning = meaningMod.showMeaning;
-      console.log("✅ MeaningView loaded");
-    }
-
-    // NEW: Load PhoneticView
-    const phoneticMod = await import(chrome.runtime.getURL("src/components/PhoneticView/PhoneticView.js"));
-    if (phoneticMod && phoneticMod.phoneticView) {
-      phoneticView = phoneticMod.phoneticView;
-      console.log("✅ PhoneticView loaded");
-    }
-
-    // NEW: Load MediaPlayer
-    const mediaPlayerMod = await import(chrome.runtime.getURL("src/components/MediaPlayer/MediaPlayer.js"));
-    if (mediaPlayerMod && mediaPlayerMod.mediaPlayer) {
-      mediaPlayer = mediaPlayerMod.mediaPlayer;
-      console.log("✅ MediaPlayer loaded");
-    }
-  } catch (err) {
-    console.error("Failed to load modules:", err);
-  }
-})();
-
-// Load Panel CSS (existing)
+// Load external CSS file for the panel
 const link = document.createElement("link");
 link.rel = "stylesheet";
 link.href = chrome.runtime.getURL("src/components/Panel/Panel.css");
@@ -48,7 +20,7 @@ let selectedText = "";
 const panelRoot = document.createElement("div");
 panelRoot.id = "ai-teaching-panel-root";
 
-// Toggle button (existing)
+// Create toggle button immediately
 const toggleBtn = document.createElement("button");
 toggleBtn.id = "ai-panel-toggle";
 toggleBtn.innerHTML = `
@@ -59,41 +31,108 @@ toggleBtn.innerHTML = `
   </svg>
 `;
 document.body.appendChild(toggleBtn);
+console.log("Toggle button created");
 
 toggleBtn.addEventListener("click", () => {
   panelRoot.classList.toggle("active");
   toggleBtn.classList.toggle("active");
 });
 
-// Load Panel.html
-const panelHtmlUrl = chrome.runtime.getURL("src/components/Panel/Panel.html");
+// ✅ LOAD ALL MODULES AND INITIALIZE PROPERLY
+(async () => {
+  try {
+    console.log('🚀 Loading extension modules...');
 
-fetch(panelHtmlUrl)
-  .then(res => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    return res.text();
-  })
-  .then(html => {
+    // ✅ Step 1: Load all modules in parallel
+    const [meaningMod, phoneticMod, mediaPlayerMod] = await Promise.all([
+      import(chrome.runtime.getURL("src/components/MeaningView/MeaningView.js"))
+        .catch(err => {
+          console.error("Failed to load MeaningView:", err);
+          return null;
+        }),
+      import(chrome.runtime.getURL("src/components/PhoneticView/PhoneticView.js"))
+        .catch(err => {
+          console.error("Failed to load PhoneticView:", err);
+          return null;
+        }),
+      import(chrome.runtime.getURL("src/components/MediaPlayer/MediaPlayer.js"))
+        .catch(err => {
+          console.error("Failed to load MediaPlayer:", err);
+          return null;
+        })
+    ]);
+
+    // Assign modules
+    if (meaningMod && typeof meaningMod.showMeaning === "function") {
+      showMeaning = meaningMod.showMeaning;
+      console.log("✅ MeaningView loaded");
+    }
+
+    if (phoneticMod && phoneticMod.phoneticView) {
+      phoneticView = phoneticMod.phoneticView;
+      console.log("✅ PhoneticView loaded");
+    }
+
+    if (mediaPlayerMod && mediaPlayerMod.mediaPlayer) {
+      mediaPlayer = mediaPlayerMod.mediaPlayer;
+      console.log("✅ MediaPlayer loaded");
+    }
+
+    // ✅ Step 2: Load Panel HTML
+    const panelHtmlUrl = chrome.runtime.getURL("src/components/Panel/Panel.html");
+    console.log("Fetching Panel.html from:", panelHtmlUrl);
+
+    const response = await fetch(panelHtmlUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const html = await response.text();
+    console.log("Panel.html fetched successfully");
+
     panelRoot.innerHTML = html;
     document.body.appendChild(panelRoot);
-    console.log("✅ Panel loaded");
+    console.log("✅ Panel HTML loaded and appended");
 
+    // ✅ Step 3: Bind panel events
     bindPanelEvents();
-    
-    // ✅ Wait for DOM to be ready
+
+    // ✅ Step 4: Wait for DOM to be fully rendered, then initialize modules
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        // Now DOM is definitely ready
+        console.log('🔧 Initializing modules...');
+
+        // Initialize PhoneticView
         if (phoneticView) {
-          const success = phoneticView.init();
-          console.log('PhoneticView init:', success);
+          const phoneticSuccess = phoneticView.init();
+          console.log('PhoneticView initialized:', phoneticSuccess);
+        } else {
+          console.warn('⚠️ phoneticView not loaded');
         }
+
+        // Initialize MediaPlayer with panelRoot
+        if (mediaPlayer) {
+          const mediaSuccess = mediaPlayer.init(panelRoot);
+          console.log('MediaPlayer initialized:', mediaSuccess);
+          
+          if (!mediaSuccess) {
+            console.error('❌ MediaPlayer initialization failed');
+            console.log('Debug: Checking panel elements...');
+            console.log('Panel root:', panelRoot);
+            console.log('Play button:', panelRoot.querySelector('#play-tts-btn'));
+          }
+        } else {
+          console.warn('⚠️ mediaPlayer not loaded');
+        }
+
+        console.log('✅ Extension fully initialized!');
       });
     });
-  })
-  .catch(err => {
-    console.error("❌ Failed to load Panel.html:", err);
-  });
+
+  } catch (err) {
+    console.error("❌ Failed to initialize extension:", err);
+  }
+})();
 
 function bindPanelEvents() {
   const contentInput = document.getElementById("content-input");
@@ -101,13 +140,14 @@ function bindPanelEvents() {
   const closePanelBtn = document.getElementById("close-panel-btn");
 
   if (!contentInput || !getMeaningBtn || !closePanelBtn) {
-    console.error("❌ Panel elements not found");
+    console.error("Panel elements not found");
     return;
   }
 
   // Close panel
   closePanelBtn.addEventListener("click", () => {
     panelRoot.classList.remove("active");
+    toggleBtn.classList.remove("active");
   });
 
   // Capture text selection
@@ -117,14 +157,21 @@ function bindPanelEvents() {
       selectedText = text;
       contentInput.value = text;
       panelRoot.classList.add("active");
+      toggleBtn.classList.add("active");
       
+      // ✅ Clear selection after capturing
       setTimeout(() => {
         window.getSelection().removeAllRanges();
-      }, 1000); // Wait 100ms, then clear selection
+      }, 50);
       
-      // NEW: Load phonetics when text selected
+      // Load phonetics
       if (phoneticView) {
         phoneticView.loadPhonetics(text);
+      }
+
+      // ✅ Set text for media player
+      if (mediaPlayer) {
+        mediaPlayer.setText(text);
       }
     }
   });
@@ -133,9 +180,14 @@ function bindPanelEvents() {
   contentInput.addEventListener("input", e => {
     selectedText = e.target.value;
     
-    // NEW: Update phonetics when typing
+    // Update phonetics
     if (phoneticView && selectedText.trim()) {
       phoneticView.loadPhonetics(selectedText);
+    }
+
+    // ✅ Update media player text
+    if (mediaPlayer) {
+      mediaPlayer.setText(selectedText);
     }
   });
 
@@ -145,25 +197,20 @@ function bindPanelEvents() {
       alert("Please select some text first");
       return;
     }
-    
-    // Show meaning (existing)
     showMeaning(selectedText);
-    
-    // NEW: Also load phonetics
-    if (phoneticView) {
-      phoneticView.loadPhonetics(selectedText);
-    }
   });
 
-  // ESC key (existing)
+  // ESC key to close
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && panelRoot.classList.contains('active')) {
-      panelRoot.classList.remove('active');
-      toggleBtn.classList.remove('active');
+    if (e.key === 'Escape') {
+      if (panelRoot.classList.contains('active')) {
+        panelRoot.classList.remove('active');
+        toggleBtn.classList.remove('active');
+      }
     }
   });
 
-  // Click outside (existing)
+  // Click outside to close
   document.addEventListener('mousedown', (e) => {
     if (panelRoot.classList.contains('active') && 
         !panelRoot.contains(e.target) && 
