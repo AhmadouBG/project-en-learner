@@ -54,10 +54,12 @@ class MediaPlayer {
       console.log("🎤 Voice selector found");
       console.log("   Initial value:", this.voiceSelect.value);
       
-      this.voiceSelect.addEventListener("change", (e) => {
+      this.voiceSelect.addEventListener("change", async (e) => {
         console.log("\n🔔 VOICE CHANGED EVENT");
         console.log("   Old voice:", this.voicePreset);
         console.log("   New voice:", e.target.value);
+
+        await this.deleteOldAudio();
         
         this.voicePreset = e.target.value;
         
@@ -154,7 +156,6 @@ class MediaPlayer {
       this.play();
       return;
     }
-
     // Generate new
     console.log("🎙️ Generating new audio");
     await this.generate(text);

@@ -4,6 +4,7 @@ from backend.services.coqui_tts_service import CoquiTTSService
 from backend.services.meaning_service import MeaningService
 from backend.core.config import get_settings
 from backend.services.phonetic_service import PhoneticService
+from backend.services.pronunciation_service import PronunciationService
 
 @lru_cache()
 def get_meaning_service() -> MeaningService:
@@ -24,7 +25,12 @@ def get_phonetic_service() -> PhoneticService:  # NEW
 def get_coqui_tts_service() -> CoquiTTSService:  # NEW
     """Singleton CoquiService for audio generation"""
     return CoquiTTSService()
-# Optional: Add more dependencies
+
+@lru_cache()
+def get_pronunciation_service() -> PronunciationService:
+    """Singleton Pronunciation Service"""
+    return PronunciationService()
+
 @lru_cache()
 def get_settings_dependency():
     return get_settings()

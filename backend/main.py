@@ -6,6 +6,7 @@ from backend.core.config import get_settings
 from backend.api.routes.api_meaning import router as meaning_router
 from backend.api.routes.api_phonetic import router as phonetic_router
 from backend.api.routes.api_audio import router as audio_router
+from backend.api.routes.api_pronunciation import router as pronunciation_router
 from contextlib import asynccontextmanager
 # Setup logging
 logging.basicConfig(
@@ -49,6 +50,7 @@ app.add_middleware(
 app.include_router(meaning_router)
 app.include_router(phonetic_router) 
 app.include_router(audio_router)  # NEW
+app.include_router(pronunciation_router)
 
 
 
@@ -61,6 +63,7 @@ async def root():
             "meaning": "/api/meaning",
             "phonetics": "/api/phonetics",
             "audio": "/api/audio/generate",
+            "pronunciation": "/api/pronunciation",
             "docs": "/docs" if settings.DEBUG else None
         }
     
