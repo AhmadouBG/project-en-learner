@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # ── Security ─────────────────────────────────────────────────────────────
     # If empty, a token is auto-generated at startup and written back to .env
-    API_TOKEN: str = ""
+    # API_TOKEN: str = ""
 
     # ── CORS ─────────────────────────────────────────────────────────────────
     # Space-separated list of allowed origins.
@@ -55,8 +55,8 @@ class Settings(BaseSettings):
     LOG_FORMAT: Literal["json", "console"] = "console"
 
     # ── Legacy / external keys ────────────────────────────────────────────────
-    API_KEY_GEMINI: str = ""          # Optional; required only when USE_GEMINI=true
-    USE_GEMINI: bool = False          # Off by default — local-first
+    API_KEY_GEMINI: str = ""         # Optional; required only when USE_GEMINI=true
+    USE_GEMINI: bool = True          # Off by default — local-first
     USE_TRANSFORMER_BARK: bool = False
 
     # ── Model paths (populated by Phase 2+ as models are added) ───────────────
