@@ -1,0 +1,16 @@
+node_modules/
+.output/
+.wxt/
+coverage/
+stats.html
+stats-*.json
+*.log
+.DS_Store
+
+# Generated dictionary data (rebuild with scripts/build_cmudict.ts)
+src/data/generated/
+
+# Local secrets: none needed in v1.0 (no backend, no account)
+*.local
+.env
+.env.*
