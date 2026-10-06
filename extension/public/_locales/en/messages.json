@@ -1,0 +1,43 @@
+{
+  "extName": {
+    "message": "English Shadowing",
+    "description": "Extension name shown in the Chrome Web Store and the extensions page."
+  },
+  "extDescription": {
+    "message": "Practise English pronunciation on any web page: select text, listen to it, shadow it, and review what you practised.",
+    "description": "Extension description. Keep in sync with the single-purpose statement."
+  },
+  "actionTitle": {
+    "message": "Open the practice panel",
+    "description": "Tooltip for the toolbar button."
+  },
+  "commandOpenPanel": {
+    "message": "Practise the selected text",
+    "description": "Description of the keyboard shortcut shown in chrome://extensions/shortcuts."
+  },
+  "tabPractise": { "message": "Practise" },
+  "tabSaved": { "message": "Saved" },
+  "tabSettings": { "message": "Settings" },
+
+  "btnListen": { "message": "Listen" },
+  "btnStop": { "message": "Stop" },
+  "btnPractise": { "message": "Practise pronunciation" },
+  "btnSave": { "message": "Save" },
+  "btnCancel": { "message": "Cancel" },
+  "btnClose": { "message": "Close" },
+  "btnRetry": { "message": "Try again" },
+
+  "accentshortUS": { "message": "US" },
+  "accentShortUK": { "message": "UK" },
+  "accentLongUS": { "message": "American English" },
+  "accentLongUK": { "message": "British English" },
+
+  "errNoText": { "message": "Select some text first." },
+  "errRestrictedPage": {
+    "message": "This page can't be used. Try a normal website.",
+    "description": "Shown when the shortcut is pressed on chrome://, the Web Store or the PDF viewer."
+  },
+  "errNothingSelected": {
+    "message": "No text selected. Highlight some text and try again."
+  }
+}

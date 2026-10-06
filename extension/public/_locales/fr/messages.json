@@ -1,0 +1,42 @@
+{
+  "extName": {
+    "message": "English Shadowing",
+    "description": "Extension name shown in the Chrome Web Store and the extensions page."
+  },
+  "extDescription": {
+    "message": "Pratiquez la prononciation anglaise sur n'importe quelle page : sélectionnez un texte, écoutez-le, répétez-le, puis revoyez ce que vous avez travaillé.",
+    "description": "Extension description. Keep in sync with the single-purpose statement."
+  },
+  "actionTitle": {
+    "message": "Ouvrir le panneau d'entraînement",
+    "description": "Tooltip for the toolbar button."
+  },
+  "commandOpenPanel": {
+    "message": "Pratiquer le texte sélectionné",
+    "description": "Description of the keyboard shortcut shown in chrome://extensions/shortcuts."
+  },
+  "tabPractise": { "message": "Pratiquer" },
+  "tabSaved": { "message": "Enregistrés" },
+  "tabSettings": { "message": "Réglages" },
+
+  "btnListen": { "message": "Écouter" },
+  "btnStop": { "message": "Arrêter" },
+  "btnPractise": { "message": "Pratiquer la prononciation" },
+  "btnSave": { "message": "Enregistrer" },
+  "btnCancel": { "message": "Annuler" },
+  "btnClose": { "message": "Fermer" },
+  "btnRetry": { "message": "Réessayer" },
+
+  "accentShortUS": { "message": "US" },
+  "accentShortUK": { "message": "UK" },
+  "accentLongUS": { "message": "Anglais américain" },
+  "accentLongUK": { "message": "Anglais britannique" },
+
+  "errNoText": { "message": "Sélectionnez d'abord du texte." },
+  "errRestrictedPage": {
+    "message": "Cette page n'est pas utilisable. Essayez un site web normal."
+  },
+  "errNothingSelected": {
+    "message": "Aucun texte sélectionné. Sélectionnez du texte et réessayez."
+  }
+}
