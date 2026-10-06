@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>English Shadowing</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!--
+      Phase 1 ships the accessible tab shell only. The three tab bodies arrive in
+      later phases, so each is a labelled landmark with an explicit empty state
+      rather than a blank panel.
+    -->
+    <div class="panel" id="panel">
+      <header class="panel-header">
+        <h1 class="panel-title" id="app-title">English Shadowing</h1>
+      </header>
+
+      <div class="tabs" role="tablist" aria-labelledby="app-title" id="tablist">
+        <button
+          class="tab"
+          id="tab-practise"
+          role="tab"
+          type="button"
+          aria-controls="panel-practise"
+          aria-selected="true"
+          tabindex="0"
+          data-tab="practise"
+        >
+          Practise
+        </button>
+        <button
+          class="tab"
+          id="tab-saved"
+          role="tab"
+          type="button"
+          aria-controls="panel-saved"
+          aria-selected="false"
+          tabindex="-1"
+          data-tab="saved"
+        >
+          Saved
+        </button>
+        <button
+          class="tab"
+          id="tab-settings"
+          role="tab"
+          type="button"
+          aria-controls="panel-settings"
+          aria-selected="false"
+          tabindex="-1"
+          data-tab="settings"
+        >
+          Settings
+        </button>
+      </div>
+
+      <main class="panel-body">
+        <section
+          class="tab-panel"
+          id="panel-practise"
+          role="tabpanel"
+          aria-labelledby="tab-practise"
+          tabindex="0"
+          hidden
+        >
+          <p class="empty-state">Select text on a page to start practising.</p>
+        </section>
+
+        <section
+          class="tab-panel"
+          id="panel-saved"
+          role="tabpanel"
+          aria-labelledby="tab-saved"
+          tabindex="0"
+          hidden
+        >
+          <p class="empty-state">No saved items yet.</p>
+        </section>
+
+        <section
+          class="tab-panel"
+          id="panel-settings"
+          role="tabpanel"
+          aria-labelledby="tab-settings"
+          tabindex="0"
+          hidden
+        >
+          <p class="empty-state">Settings arrive with the settings phase.</p>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
