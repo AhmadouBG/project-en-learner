@@ -18,6 +18,7 @@ Running
 """
 from __future__ import annotations
 
+import importlib
 import logging
 import uuid
 from contextlib import asynccontextmanager
@@ -34,6 +35,9 @@ from backend.app.core.errors import register_error_handlers
 from backend.app.core.logging_conf import configure_logging
 
 logger = structlog.get_logger(__name__)
+
+# Route label -> module/attribute, used by _mount_legacy_routes
+ROUTES = ("/api/meaning", "/api/phonetics", "/api/audio", "/api/pronunciation")
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────────────
@@ -139,40 +143,47 @@ def _mount_legacy_routes(app: FastAPI) -> None:
     """
     Wire the original four routers.
 
-    Each legacy service may fail to import (e.g. missing cmudict, coqui).
-    We catch those errors and log them so the server still starts —
+    Each legacy service may fail to import (e.g. missing google-genai, cmudict,
+    coqui). We catch those errors and log them so the server still starts —
     a degraded backend is better than a crash.
+
+    These failures are logged at ERROR level on purpose: a route that silently
+    fails to mount just 404s later, which looks like "the button is broken".
     """
     from backend.app.core.auth import require_api_token
     from fastapi import Depends
 
-    try:
-        from backend.api.routes.api_meaning import router as meaning_router
-        app.include_router(meaning_router, dependencies=[Depends(require_api_token)])
-        logger.info("legacy.route.mounted", route="/api/meaning")
-    except Exception as exc:
-        logger.warning("legacy.route.failed", route="/api/meaning", error=str(exc))
+    def mount(module_path: str, attr: str, route: str) -> bool:
+        try:
+            module = importlib.import_module(module_path)
+            app.include_router(
+                getattr(module, attr), dependencies=[Depends(require_api_token)]
+            )
+            logger.info("legacy.route.mounted", route=route)
+            return True
+        except Exception as exc:
+            logger.error(
+                "legacy.route.failed",
+                route=route,
+                error=str(exc),
+                hint="This endpoint will return 404 until the dependency is installed.",
+            )
+            return False
 
-    try:
-        from backend.api.routes.api_phonetic import router as phonetic_router
-        app.include_router(phonetic_router, dependencies=[Depends(require_api_token)])
-        logger.info("legacy.route.mounted", route="/api/phonetics")
-    except Exception as exc:
-        logger.warning("legacy.route.failed", route="/api/phonetics", error=str(exc))
+    mounted = [
+        mount("backend.api.routes.api_meaning", "router", "/api/meaning"),
+        mount("backend.api.routes.api_phonetic", "router", "/api/phonetics"),
+        mount("backend.api.routes.api_audio", "router", "/api/audio"),
+        mount("backend.api.routes.api_pronunciation", "router", "/api/pronunciation"),
+    ]
 
-    try:
-        from backend.api.routes.api_audio import router as audio_router
-        app.include_router(audio_router, dependencies=[Depends(require_api_token)])
-        logger.info("legacy.route.mounted", route="/api/audio")
-    except Exception as exc:
-        logger.warning("legacy.route.failed", route="/api/audio", error=str(exc))
-
-    try:
-        from backend.api.routes.api_pronunciation import router as pron_router
-        app.include_router(pron_router, dependencies=[Depends(require_api_token)])
-        logger.info("legacy.route.mounted", route="/api/pronunciation")
-    except Exception as exc:
-        logger.warning("legacy.route.failed", route="/api/pronunciation", error=str(exc))
+    missing = [r for r, ok in zip(ROUTES, mounted) if not ok]
+    if missing:
+        logger.error(
+            "legacy.routes.missing",
+            routes=missing,
+            hint="The Chrome extension will show an error for these features.",
+        )
 
 
 # ── Module-level app instance (used by uvicorn) ───────────────────────────────
