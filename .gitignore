@@ -6,6 +6,10 @@ __pycache__/
 .env
 .venv/
 venv/
+/extension/node_modules/
+/extension/dist/
+# Frontend local secrets (API token)
+frontend/src/config.local.js
 # VS Code
 .vscode/
 
