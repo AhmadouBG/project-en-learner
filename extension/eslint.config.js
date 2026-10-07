@@ -93,6 +93,14 @@ export default tseslint.config(
   // Overrides that must come last, since flat config applies later blocks on top.
   // -------------------------------------------------------------------------
 
+  // Stripping control characters out of captured page text is the whole point of
+  // this module, so `no-control-regex` is exactly the rule that must be silenced
+  // here. It stays enabled everywhere else to catch accidental matches.
+  {
+    files: ["src/content/normalize.ts"],
+    rules: { "no-control-regex": "off" },
+  },
+
   // Node build scripts: not browser code, and not type-checked by tsc, so the
   // type-aware rules do not apply. `console.log` is how a CLI reports its
   // output, which is the whole point of these files.
