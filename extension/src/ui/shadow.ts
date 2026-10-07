@@ -2,19 +2,18 @@
  * Shadow-DOM mount helper (spec 3: "All injected UI (micro-button, pop-up) lives
  * in a shadow DOM so page CSS cannot break it and ours cannot leak").
  *
- * We use WXT's `createShadowRootUi` for the lifecycle (it handles the CSS
- * injection, the `document_start` timing and the auto-cleanup on navigation),
- * and this module adds the pieces the spec cares about:
+ * WXT's `createShadowRootUi` owns the lifecycle and the shadow root itself; this
+ * module adds the pieces the spec cares about:
  *
- *  - the host element is a closed-ish, namespaced tag so page CSS cannot target
- *    it by accident;
  *  - our stylesheet is injected *into the shadow root only*, never into the page;
+ *  - WXT applies `all: initial` to the host by default, so page CSS cannot style
+ *    our UI and ours cannot inherit page styling;
  *  - a focus trap + focus restoration for the pop-up (spec 3, keyboard a11y);
  *  - Esc-to-close, and dismissal when the page scrolls far away (spec 4.1);
  *  - a helper to build DOM without ever touching innerHTML.
  *
  * IMPORTANT (spec 9): the user's selected text and all dictionary content are
- * untrusted. `setText` and friends always use `textContent`.
+ * untrusted. Everything here uses `textContent`, never `innerHTML`.
  */
 
 import { createShadowRootUi } from "wxt/utils/content-script-ui/shadow-root";
@@ -23,53 +22,105 @@ import type { ContentScriptContext } from "wxt/utils/content-script-context";
 /** Namespace for all our DOM. Prefixed to avoid collisions with page CSS. */
 export const NS = "es";
 
-export const HOST_TAG = `${NS}-host`;
+/** What a caller's `onMount` receives, once the shadow root exists. */
+export interface ShadowUiMount {
+  /** Isolated container inside the shadow root. Append UI here. */
+  readonly container: HTMLElement;
+  readonly shadow: ShadowRoot;
+  /** The element attached to the page. Page CSS *can* see this one. */
+  readonly host: HTMLElement;
+}
 
-export interface ShadowUiOptions {
-  /** Element name for the host. */
+export interface ShadowUiOptions<TMounted = void> {
+  /** Element name for the host; must be kebab-case. */
   readonly name: string;
   /** Stylesheet text injected into this shadow root. */
   readonly css: string;
-  /** Called once, with the shadow root, every time the UI mounts. */
-  readonly onMount: (root: ShadowRoot, host: HTMLElement) => void;
-  /** Called when the UI unmounts (navigation, extension reload). */
-  readonly onRemove?: () => void;
+  /**
+   * Called every time the UI mounts. Build the UI inside `mount.container` and
+   * return a handle; it is passed back to `onRemove` on unmount.
+   */
+  readonly onMount: (mount: ShadowUiMount) => TMounted;
+  /** Called before the UI is removed from the page. */
+  readonly onRemove?: (mounted: TMounted | undefined) => void;
+  /**
+   * Keep `position: fixed` styling on the host so the UI can be placed at
+   * viewport coordinates. Defaults to true, which is what the micro-button and
+   * the pop-up both need.
+   */
+  readonly positionFixed?: boolean;
+}
+
+/** The controller returned by `mountShadowUi`. */
+export interface ShadowUiController<TMounted = void> {
+  mount: () => void;
+  remove: () => void;
+  autoMount: (options?: { once?: boolean; onStop?: () => void }) => void;
+  readonly mounted: TMounted | undefined;
+  readonly host: HTMLElement;
+  readonly container: HTMLElement;
+  readonly shadow: ShadowRoot;
 }
 
 /**
- * Mounts a shadow-root UI and returns a small controller.
- * Re-mounting is automatic when the page SPA-navigates.
+ * Create a shadow-root UI.
+ *
+ * **Async on purpose:** WXT loads the entrypoint stylesheet with `fetch()`, so
+ * this cannot be synchronous. An earlier draft treated it as sync and also
+ * called `attachShadow()` on a container that WXT had already placed inside its
+ * own shadow root, which throws.
  */
-export type ShadowUiController = ReturnType<typeof createShadowRootUi>;
-
-export function mountShadowUi(
+export async function mountShadowUi<TMounted = void>(
   ctx: ContentScriptContext,
-  options: ShadowUiOptions,
-): ShadowUiController {
-  const ui = createShadowRootUi(ctx, {
+  options: ShadowUiOptions<TMounted>,
+): Promise<ShadowUiController<TMounted>> {
+  const ui = await createShadowRootUi<TMounted>(ctx, {
     name: `${NS}-${options.name}`,
+    // `inline` + anchor body: a single host appended to <body>. It must not
+    // affect page layout, so it is taken out of flow by the host CSS below.
     position: "inline",
     anchor: "body",
     append: "last",
-    onMount: (container) => {
-      container.attachShadow({ mode: "open" });
-      const shadow = container.shadowRoot;
-      if (!shadow) return;
-      shadow.appendChild(makeStyle(options.css));
-      options.onMount(shadow, container);
+    // Do not inherit page styles; `all: initial` on the host is what isolates us.
+    inheritStyles: false,
+    isolateEvents: true,
+    onMount: (container, shadow, host) => {
+      if (options.positionFixed !== false) {
+        // ORDER MATTERS. `all` resets every property, so the reset must come
+        // first or it wipes out everything after it. Every declaration below is
+        // `!important` because WXT also applies `:host { all: initial !important }`
+        // from its injected shadow CSS, which would otherwise win.
+        host.style.setProperty("all", "initial", "important");
+        host.style.setProperty("position", "fixed", "important");
+        host.style.setProperty("z-index", "2147483647", "important");
+        // Zero-size and pointer-transparent so the host can never shift page
+        // content or swallow clicks, whatever we draw inside it.
+        host.style.setProperty("inset", "auto", "important");
+        host.style.setProperty("display", "block", "important");
+        host.style.setProperty("width", "0", "important");
+        host.style.setProperty("height", "0", "important");
+        host.style.setProperty("pointer-events", "none", "important");
+        // Children re-enable pointer events themselves.
+        container.style.setProperty("pointer-events", "auto", "important");
+      }
+      return options.onMount({ container, shadow, host });
     },
     // `exactOptionalPropertyTypes` is on, so an optional hook must be omitted
     // rather than passed as `undefined`.
     ...(options.onRemove ? { onRemove: options.onRemove } : {}),
   });
 
-  return ui;
-}
-
-function makeStyle(css: string): HTMLStyleElement {
-  const style = document.createElement("style");
-  style.textContent = css;
-  return style;
+  return {
+    mount: ui.mount,
+    remove: ui.remove,
+    autoMount: ui.autoMount,
+    get mounted() {
+      return ui.mounted;
+    },
+    host: ui.shadowHost,
+    container: ui.uiContainer,
+    shadow: ui.shadow,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -112,6 +163,13 @@ export function frag(...children: readonly (Node | string)[]): DocumentFragment 
     f.append(typeof child === "string" ? document.createTextNode(child) : child);
   }
   return f;
+}
+
+/** A `<style>` element holding shadow-root-scoped CSS. */
+export function styleSheet(css: string): HTMLStyleElement {
+  const style = document.createElement("style");
+  style.textContent = css;
+  return style;
 }
 
 // ---------------------------------------------------------------------------

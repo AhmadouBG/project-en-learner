@@ -180,6 +180,68 @@ non-HTML surfaces. Pressing the shortcut there shows a friendly message rather
 than doing nothing. Password fields are skipped in the selection watcher
 (Phase 2).
 
+### 8b. Match patterns: explicit schemes + `excludeMatches`, not `!` prefixes
+
+**Chosen:** `matches: ["http://*/*", "https://*/*", "file:///*"]` plus
+`exclude_matches` for the three `.pdf` variants.
+
+**Rejected:** `matches: ["<all_urls>", "!*://*/*.pdf", ...]`.
+
+**Why, measured.** Chrome rejected the extension outright:
+
+```
+Invalid value for 'content_scripts[0].matches[0]': Invalid scheme. ()
+```
+
+A negative match pattern may not use a wildcard scheme, so `!*://*/*.pdf` is not
+a legal pattern. The fix is to enumerate the real-world schemes positively and
+use `exclude_matches` (a proper Chrome manifest field, exposed by WXT as
+`excludeMatches`) for the exclusions.
+
+**Why enumerate schemes instead of `<all_urls>`.** We need a place to hang
+exclusions. Listing `chrome://` / `chrome-extension://` nowhere in `matches` also
+documents intent: those are exactly the surfaces for the Web Store and Chrome's
+built-in PDF viewer, which Chrome refuses to inject into regardless.
+
+**Why exclude `.pdf`.** A PDF URL keeps its original `https://…/file.pdf` address
+while Chrome renders it in its extension-based viewer, so it *does* match a broad
+https pattern. Excluding it keeps the micro-button off rendered documents.
+
+## 8c. `all_frames` and `match_origin_as_fallback` are load-bearing
+
+**Chosen:** `all_frames: true` and `match_origin_as_fallback: true`.
+
+A DOM selection cannot span frames. If the content script only ran in the top
+document (the default), a selection made inside an iframe would be **invisible to
+us** — spec 5.1 asks for "selections inside iframes where possible", so this flag
+is a product requirement, not an optimisation.
+
+`match_origin_as_fallback` covers `about:blank` and `srcdoc` iframes, which
+inherit their parent's origin and therefore match no pattern of their own. WXT
+exposes no `matchAboutBlank` option; this is the equivalent and is what the
+spec's iframe check needs.
+
+**Verified** by `scripts/check-frames.mjs`, which keys on Chrome's per-frame
+isolated world (origin `chrome-extension://<id>`, `auxData.isDefault === false`)
+and needs no production debug hook:
+
+```
+our isolated worlds: 3 across 3 distinct frames
+PASS: top document, same-origin iframe and srcdoc iframe all got the script
+```
+
+Two CDP details worth recording, both found empirically:
+
+- Chrome delivers `Runtime.executionContextCreated` on the browser socket with
+  **no `sessionId`**, even when attached with `flatten: true`. Filtering on
+  `sessionId` silently drops every event and reports "no frames".
+- `Runtime.executionContextsCleared` must reset the collected list, or a previous
+  navigation's contexts get counted toward the current page.
+
+Note for later phases: with `all_frames`, each frame injects its own micro-button
+host. That is correct (only the frame owning the selection shows one) but means N
+hosts on a nested-frame page, all of which must be torn down on navigation.
+
 ---
 
 ## 9. TTS runs in an extension page, never in the page context
