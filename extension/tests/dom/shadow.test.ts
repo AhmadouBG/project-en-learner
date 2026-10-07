@@ -276,6 +276,8 @@ describe("watchForDismissal", () => {
 });
 
 describe("isOwnEvent", () => {
+  // Re-exported from content/guards, where the canonical implementation lives.
+  // It takes the shadow HOST element, which is what appears on a composed path.
   it("recognises events from inside our shadow root", () => {
     const host = document.createElement("div");
     document.body.appendChild(host);
@@ -286,19 +288,23 @@ describe("isOwnEvent", () => {
 
     const event = new MouseEvent("click", { bubbles: true, composed: true });
     button.dispatchEvent(event);
-    expect(isOwnEvent(event, shadow)).toBe(true);
+    expect(isOwnEvent(event, host)).toBe(true);
   });
 
   it("does not claim page events", () => {
     const host = document.createElement("div");
     document.body.appendChild(host);
     host.attachShadow({ mode: "open" });
-    const shadow = host.shadowRoot as ShadowRoot;
     const outside = document.createElement("p");
     document.body.appendChild(outside);
 
     const event = new MouseEvent("click", { bubbles: true, composed: true });
     outside.dispatchEvent(event);
-    expect(isOwnEvent(event, shadow)).toBe(false);
+    expect(isOwnEvent(event, host)).toBe(false);
+  });
+
+  it("is safe with a null host", () => {
+    const event = new MouseEvent("click", { bubbles: true, composed: true });
+    expect(isOwnEvent(event, null)).toBe(false);
   });
 });

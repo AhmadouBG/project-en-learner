@@ -316,8 +316,9 @@ export function placeNear(
   return { left: Math.round(left), top: Math.round(top) };
 }
 
-/** True when the event originated inside our own UI, so we ignore it (spec 5.1). */
-export function isOwnEvent(event: Event, shadow: ShadowRoot): boolean {
-  const path = event.composedPath();
-  return path.includes(shadow.host);
-}
+/**
+ * True when the event originated inside our own shadow-root UI, so we ignore it
+ * (spec 5.1). The canonical implementation lives in `content/guards.ts`; it is
+ * re-exported here so UI code has one obvious import.
+ */
+export { eventComesFromUs as isOwnEvent } from "../content/guards";
