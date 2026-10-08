@@ -16,8 +16,11 @@ import { isAccent, type Accent, type PracticeTarget, type PracticeKind } from ".
 
 export const STORAGE_VERSION = 1;
 
-/** Key under which the versioned blob is stored. */
-const ROOT_KEY = "es.store";
+/**
+ * Key under which the versioned blob is stored. Exported so callers can watch
+ * for changes to it via `chrome.storage.onChanged`.
+ */
+export const ROOT_KEY = "es.store";
 
 /** Spec 5.3: cap the dictionary cache so it cannot grow without bound. */
 export const DICT_CACHE_MAX_ENTRIES = 500;

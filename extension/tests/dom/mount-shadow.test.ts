@@ -136,7 +136,7 @@ describe("mountShadowUi", () => {
     expect(mount?.host.tagName.toLowerCase()).toBe("es-probe");
   });
 
-  it("keeps the host out of page layout so we cannot shift content", async () => {
+  it("leaves the host completely unstyled, so it cannot affect page layout", async () => {
     const controller = await mountShadowUi(ctx, {
       name: "probe",
       css: ".a{}",
@@ -145,51 +145,24 @@ describe("mountShadowUi", () => {
     controller.mount();
 
     const host = controller.host;
-    // Order matters: `all: initial` resets everything, so it must be applied
-    // FIRST. This was a real bug -- the original version set `all: initial`
-    // last, which silently reset `position` back to static. happy-dom does not
-    // cascade `all`, so only a real browser catches it; the unit test pins the
-    // declared order so it cannot come back.
-    expect(host.getAttribute("style")).not.toBeNull();
-    const declarations = (host.getAttribute("style") ?? "")
-      .split(";")
-      .map((d) => d.trim())
-      .filter(Boolean);
-    expect(declarations[0]?.startsWith("all")).toBe(true);
-
-    expect(host.style.getPropertyPriority("position")).toBe("important");
-    expect(host.style.getPropertyValue("position")).toBe("fixed");
-    expect(host.style.getPropertyPriority("z-index")).toBe("important");
-    expect(host.style.getPropertyValue("z-index")).toBe("2147483647");
-    // happy-dom normalises the unit, so match either form.
-    expect(host.style.getPropertyValue("width")).toMatch(/^0(px)?$/);
-    expect(host.style.getPropertyValue("height")).toMatch(/^0(px)?$/);
-    // The host must never swallow clicks meant for the page.
-    expect(host.style.getPropertyValue("pointer-events")).toBe("none");
-  });
-
-  it("re-enables pointer events on the container so the UI is clickable", async () => {
-    const controller = await mountShadowUi(ctx, {
-      name: "probe",
-      css: ".a{}",
-      onMount: () => undefined,
-    });
-    controller.mount();
-
-    expect(controller.container.style.getPropertyValue("pointer-events")).toBe("auto");
-    expect(controller.container.style.getPropertyPriority("pointer-events")).toBe("important");
+    // No inline styles at all. Positioning and pointer-events belong to the
+    // container, styled by the caller's own shadow CSS: WXT applies
+    // `:host { all: initial !important }`, and `all` includes `position`, so any
+    // host positioning we set is silently overridden (measured in Chrome).
+    expect(host.getAttribute("style")).toBeNull();
+    expect(host.style.position).toBe("");
   });
 
   it("can opt out of the fixed-position host treatment", async () => {
     const controller = await mountShadowUi(ctx, {
       name: "probe",
       css: ".a{}",
-      positionFixed: false,
       onMount: () => undefined,
     });
     controller.mount();
 
-    expect(controller.host.style.getPropertyValue("position")).toBe("");
+    // Host styling is unconditional now: there is none.
+    expect(controller.host.getAttribute("style")).toBeNull();
   });
 
   it("returns the caller's mount handle and forwards it to onRemove", async () => {
@@ -217,6 +190,21 @@ describe("mountShadowUi", () => {
     await mountShadowUi(ctx, { name: "probe", css: ".a{}", onMount: () => undefined });
     const options = createShadowRootUi.mock.calls[0]?.[1] as Record<string, unknown>;
     expect("onRemove" in options).toBe(false);
+  });
+
+  // Regression: our stylesheet was silently dropped, so the micro-button rendered
+  // unstyled (32x25 instead of 28x28) at the bottom of the page instead of next
+  // to the selection. Nothing caught it until the real-browser check inspected
+  // the shadow root and found only WXT's reset rule in the <style>.
+  it("passes our stylesheet to WXT so it lands in the shadow root", async () => {
+    await mountShadowUi(ctx, {
+      name: "probe",
+      css: ".es-root{position:fixed}.es-button{border-radius:50%}",
+      onMount: () => undefined,
+    });
+    const options = createShadowRootUi.mock.calls[0]?.[1] as { css: string };
+    expect(options.css).toContain(".es-root");
+    expect(options.css).toContain(".es-button");
   });
 
   it("isolates styles from the page by resetting inherited styles", async () => {

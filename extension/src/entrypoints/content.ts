@@ -1,40 +1,33 @@
 /**
- * Content script (Phase 2 Task 1: frame injection).
+ * Content script entrypoint (Phase 2 Task 5: selection capture + micro-button).
  *
- * Spec 3 asks for a content script on `<all_urls>` so the micro-button is
- * available anywhere, while keeping it switchable to `activeTab` + `scripting`.
- * To make that swap a one-line change, ALL of the real logic lives in
- * `src/content/` behind factories; this file only decides *how* it is loaded.
+ * This file is intentionally thin. Everything testable lives in `src/content/`:
+ *   normalize.ts  clean the text, split sentences (pure)
+ *   guards.ts     refuse passwords and browser surfaces (pure)
+ *   gate.ts       dedupe, debounce, dismissal policy (pure)
+ *   selection.ts  read the selection and run the guards
+ *   micro-button.ts the 28 px button
  *
- * Spec 9: "no work on pages until the user selects text". Until Task 5 wires up
- * selection, this script attaches no listeners, injects no DOM and loads no
- * stylesheet, so its cost is just its own bytes.
+ * Spec 3 requires this to be switchable to `activeTab` + `scripting`. All logic
+ * is behind factories and only imported from here, so that swap is a manifest
+ * change plus injecting these modules from the background.
  */
 
 import { defineContentScript } from "wxt/utils/define-content-script";
+import { createMicroButton } from "../content/micro-button";
+import {
+  createSelectionWatcher,
+  targetFromSelection,
+  type ResolvedSelection,
+} from "../content/selection";
+import { DEFAULT_SETTINGS, ROOT_KEY, readStore, updateStore } from "../shared/storage";
+import { sendToBackground } from "../shared/bus";
+import type { FromBackground } from "../shared/messages";
 
-/**
- * Where the content script runs (spec 3: "implement it with `content_scripts`
- * matching `<all_urls>`", while staying switchable to `activeTab` + `scripting`).
- *
- * We enumerate the three real-world schemes instead of using `<all_urls>` so we
- * can pair them with explicit exclusions. `chrome://` and `chrome-extension://`
- * are deliberately absent: that covers the Web Store and Chrome's built-in PDF
- * viewer, both of which are extension pages Chrome refuses to inject into
- * anyway. Listing them by hand keeps the intent visible rather than relying on
- * Chrome's implicit blocking.
- */
+/** Where the content script runs; see DECISIONS.md 8b for why not `<all_urls>`. */
 const MATCHES = ["http://*/*", "https://*/*", "file:///*"];
 
-/**
- * A bare `.pdf` URL is served by that same built-in viewer while keeping the
- * original URL, so it *would* match a broad https pattern. Excluding it means the
- * micro-button can never appear over a rendered PDF.
- *
- * Exclusions use `excludeMatches` rather than `!` prefixes inside `matches`,
- * because Chrome's match-pattern parser rejects a wildcard scheme in a negative
- * pattern (`Invalid scheme`) -- verified by loading the extension.
- */
+/** `.pdf` URLs are served by Chrome's built-in PDF viewer. See DECISIONS.md 8b. */
 const EXCLUDE_MATCHES = ["http://*/*.pdf", "https://*/*.pdf", "file://*/*.pdf"];
 
 export default defineContentScript({
@@ -42,27 +35,138 @@ export default defineContentScript({
   excludeMatches: EXCLUDE_MATCHES,
 
   /**
-   * Spec 5.1: handle "selections inside iframes where possible".
-   *
-   * A DOM selection cannot span frames, so each frame that owns the selection
-   * shows the micro-button for its own selection. With `allFrames: false` the
-   * script only runs in the top document and iframe selections are simply
-   * invisible to us -- so this flag is load-bearing, not an optimisation.
+   * Spec 5.1: handle "selections inside iframes where possible". A DOM selection
+   * cannot span frames, so with `allFrames: false` iframe selections would be
+   * silently invisible. Load-bearing, not an optimisation.
    */
   allFrames: true,
 
-  /**
-   * `about:blank` and `srcdoc` iframes inherit their parent's origin, so they
-   * match no pattern of their own. This is how they get the script.
-   */
+  /** `about:blank` / `srcdoc` frames inherit the parent origin and match no pattern. */
   matchOriginAsFallback: true,
 
-  // Page CSP does not affect us: our UI goes into a shadow root with an inline
-  // <style>, which page CSP does not govern.
   runAt: "document_idle",
 
-  main() {
-    // Placeholder until the selection watcher lands (Task 5).
-    void 0;
+  async main(ctx) {
+    /**
+     * The running UI, or null when the feature is switched off.
+     *
+     * Everything is created and torn down together, so switching the setting off
+     * removes our listeners and our DOM rather than merely hiding the button.
+     * That matters: leaving a `mouseup` listener attached would keep costing work
+     * on every page even after the user said no.
+     */
+    let running: { stop: () => void } | null = null;
+
+    const start = async (): Promise<void> => {
+      if (running) return;
+      const store = await readStore().catch(() => null);
+      const settings = store?.settings ?? DEFAULT_SETTINGS;
+
+      const button = createMicroButton(ctx, {
+        label: t("microButtonLabel"),
+        // Spec 4.1: the first-run tooltip is shown exactly once.
+        tooltip: settings.firstRunTooltipShown ? null : t("microButtonFirstRun"),
+        onActivate: (selection) => {
+          void onButtonActivated(selection);
+        },
+        onDismiss: () => undefined,
+      });
+
+      const watcher = createSelectionWatcher({
+        enabled: true,
+        onSelection: (selection: ResolvedSelection) => {
+          void button.show(selection);
+        },
+        onDismiss: () => {
+          button.hide();
+        },
+        // Clicking our own button is not a new selection, so its events must be
+        // ignored by the watcher (spec 5.1).
+        ownHost: () => button.host,
+      });
+
+      running = {
+        stop: () => {
+          watcher.destroy();
+          button.destroy();
+          running = null;
+        },
+      };
+    };
+
+    const stop = (): void => {
+      running?.stop();
+    };
+
+    const applySetting = async (enabled: boolean): Promise<void> => {
+      if (enabled) await start();
+      else stop();
+    };
+
+    // Initial state.
+    await applySetting(settingsOrDefault(await readStore()).showButtonOnSelection);
+
+    /**
+     * React to the setting changing while the page stays open.
+     *
+     * Reading the setting once at `document_idle` is not enough: the user would
+     * have to refresh every open tab before "Show button on selection" took
+     * effect, which reads as the setting being broken.
+     */
+    const onStorageChanged = (
+      changes: Record<string, chrome.storage.StorageChange>,
+      area: string,
+    ): void => {
+      if (area !== "local" || !(ROOT_KEY in changes)) return;
+      void readStore()
+        .then((store) => applySetting(store.settings.showButtonOnSelection))
+        .catch(() => undefined);
+    };
+    chrome.storage.onChanged.addListener(onStorageChanged);
+
+    ctx.onInvalidated(() => {
+      chrome.storage.onChanged.removeListener(onStorageChanged);
+      stop();
+    });
   },
 });
+
+/** Read settings from a store, falling back to defaults. */
+function settingsOrDefault(store: Awaited<ReturnType<typeof readStore>> | null) {
+  return store?.settings ?? DEFAULT_SETTINGS;
+}
+
+/**
+ * Mark the first-run tooltip as shown, then ask the background to open the side
+ * panel for this selection.
+ *
+ * The panel cannot display the text until its own phase; opening it is the
+ * visible end-to-end result today and is where the text hand-off lands next.
+ */
+async function onButtonActivated(
+  selection: Parameters<typeof targetFromSelection>[0],
+): Promise<void> {
+  const store = await readStore().catch(() => null);
+  const settings = settingsOrDefault(store);
+  const target = targetFromSelection(selection, settings.defaultAccent, settings.defaultSpeed);
+
+  // One write: stash the target and mark the tooltip as seen.
+  await updateStore((current) => ({
+    store: {
+      ...current,
+      session: { target },
+      settings: { ...current.settings, firstRunTooltipShown: true },
+    },
+    result: null,
+  })).catch(() => null);
+
+  await sendToBackground<FromBackground>({ type: "open-panel", target }, (reply) => reply).catch(
+    () => null,
+  );
+}
+
+/** `chrome.i18n` lookup with a visible fallback. */
+function t(key: string): string {
+  const message = chrome.i18n.getMessage(key);
+  return message === "" ? key : message;
+}

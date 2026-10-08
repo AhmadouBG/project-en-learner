@@ -39,5 +39,14 @@
   },
   "errNothingSelected": {
     "message": "No text selected. Highlight some text and try again."
+  },
+
+  "microButtonLabel": {
+    "message": "Practise this text",
+    "description": "Accessible name of the 28 px button that appears next to a selection."
+  },
+  "microButtonFirstRun": {
+    "message": "Click to practise this text",
+    "description": "Tooltip shown once on the very first selection, per spec 4.1."
   }
 }

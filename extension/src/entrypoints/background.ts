@@ -43,6 +43,23 @@ export default defineBackground(() => {
     console.info("[background] context menu practise", { hasSelection: Boolean(selected) });
     void openPanel(tab.windowId);
   });
+
+  // Spec 5.10: one typed protocol. The content script asks us to open the panel
+  // for the selection it just captured. Returning true keeps the channel open
+  // for the async reply.
+  chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
+    if (typeof message !== "object" || message === null) return false;
+    if ((message as { type?: unknown }).type !== "open-panel") return false;
+
+    const windowId = sender.tab?.windowId;
+    if (typeof windowId !== "number") {
+      sendResponse(null);
+      return false;
+    }
+
+    void openPanel(windowId).then(() => sendResponse({ type: "settings:changed" }));
+    return true;
+  });
 });
 
 async function createContextMenu(): Promise<void> {

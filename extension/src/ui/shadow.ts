@@ -43,12 +43,6 @@ export interface ShadowUiOptions<TMounted = void> {
   readonly onMount: (mount: ShadowUiMount) => TMounted;
   /** Called before the UI is removed from the page. */
   readonly onRemove?: (mounted: TMounted | undefined) => void;
-  /**
-   * Keep `position: fixed` styling on the host so the UI can be placed at
-   * viewport coordinates. Defaults to true, which is what the micro-button and
-   * the pop-up both need.
-   */
-  readonly positionFixed?: boolean;
 }
 
 /** The controller returned by `mountShadowUi`. */
@@ -81,28 +75,27 @@ export async function mountShadowUi<TMounted = void>(
     position: "inline",
     anchor: "body",
     append: "last",
+    // Our stylesheet, injected into THIS shadow root only. WXT splits it so any
+    // rule that must live in the page document (there are none for us) goes to
+    // the document instead.
+    css: options.css,
     // Do not inherit page styles; `all: initial` on the host is what isolates us.
     inheritStyles: false,
     isolateEvents: true,
     onMount: (container, shadow, host) => {
-      if (options.positionFixed !== false) {
-        // ORDER MATTERS. `all` resets every property, so the reset must come
-        // first or it wipes out everything after it. Every declaration below is
-        // `!important` because WXT also applies `:host { all: initial !important }`
-        // from its injected shadow CSS, which would otherwise win.
-        host.style.setProperty("all", "initial", "important");
-        host.style.setProperty("position", "fixed", "important");
-        host.style.setProperty("z-index", "2147483647", "important");
-        // Zero-size and pointer-transparent so the host can never shift page
-        // content or swallow clicks, whatever we draw inside it.
-        host.style.setProperty("inset", "auto", "important");
-        host.style.setProperty("display", "block", "important");
-        host.style.setProperty("width", "0", "important");
-        host.style.setProperty("height", "0", "important");
-        host.style.setProperty("pointer-events", "none", "important");
-        // Children re-enable pointer events themselves.
-        container.style.setProperty("pointer-events", "auto", "important");
-      }
+      // Deliberately NO inline styles on the host.
+      //
+      // WXT applies `:host { all: initial !important }` from its injected shadow
+      // CSS, and `all` includes `position`. Measured in Chrome: that declaration
+      // beat an inline `position: fixed !important` on the host, leaving it
+      // computed as `static`, so the micro-button rendered in normal flow at the
+      // bottom of the page instead of next to the selection.
+      //
+      // Two fixes in one: an inline `all` reset expands to several hundred
+      // longhands and bloats the DOM, and positioning the host at all fights
+      // WXT's reset. So the host stays an unstyled 0x0 custom element (it cannot
+      // affect layout or intercept clicks), and the caller positions the
+      // CONTAINER from its own shadow CSS, where nothing outranks it.
       return options.onMount({ container, shadow, host });
     },
     // `exactOptionalPropertyTypes` is on, so an optional hook must be omitted
