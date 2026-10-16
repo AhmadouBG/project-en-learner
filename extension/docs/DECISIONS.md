@@ -381,7 +381,98 @@ re-measured at Phase 12 with the CMUdict chunk lazy-loaded.
 
 ---
 
-## 14. Rejected / not yet decided
+## 14. CMUdict: generated, checkpointed, and US-only (Phase 3)
+
+**Source and licence.** `cmusphinx/cmudict`, fetched from GitHub `master` and
+pinned by the SHA-256 recorded in the generated manifest
+(`81917843c7f44ce2b094ac63873c2c7a4cf802040792c455ba3ca406891c3d22` for the
+version measured here). The licence is BSD-style (CMU) and requires the
+copyright notice and disclaimer in source *and* binary distributions, so the
+attribution is a Phase 12 deliverable, not optional.
+
+**Generated, not committed.** Spec 5.2 says to "bundle CMUdict converted to a
+compact format"; it does not say to commit it. `cmudict.dict` is 3.5 MB and the
+packed form is 2.09 MB, which would dominate the repository. `scripts/build-dict.mjs`
+downloads and packs it, the output under `src/ipa/dict/` and the download under
+`.cache/` are gitignored, and the shipped extension still bundles the data -- so
+there is no runtime network dependency. `npm run build:dict` regenerates;
+`npm run check:ipa` verifies.
+
+**Format.** Two files, 2,192,392 bytes total = **60.6% of the raw 3,534 kB**:
+
+| file | size | contents |
+|---|---|---|
+| `dict.json` | 770 kB | manifest, checkpoints, front-coded word list |
+| `dict.bin` | 1,371 kB | phones, one character per phone, with an offset index |
+
+Each phone is a single character: `phoneIndex + stress * 39` indexes a 123-
+character alphabet, so a lookup recovers symbol and stress together. The word
+list is front-coded (each word stored as a shared-prefix length plus a suffix),
+which saved 58% of the word bytes.
+
+**Lazy reading, not eager.** Plain front-coding cannot be searched, because entry
+N is defined relative to entry N-1, so decoding entry 92,000 means decoding the
+91,999 before it. The first implementation did exactly that: **208 ms** on first
+use and a large heap, for data where one word is wanted. Every 64th word is
+therefore stored in full as a **checkpoint**; a lookup binary-searches the 2,112
+checkpoints and then decodes only the one block. Byte offsets of each block are
+stored too -- without them the reader scanned the blob from byte 0, which
+measured at 2.07 ms per lookup, *worse* than the eager version it replaced.
+
+**Measured, after load** (spec 7 budget: under 20 ms):
+
+| | eager | lazy (final) |
+|---|---|---|
+| load + decode | 208 ms | **0.0 ms** (two fetches, no per-entry work) |
+| lookup p50 | 0.0016 ms | 0.0146 ms |
+| lookup p95 | 0.0075 ms | **0.0238 ms** |
+| worst probe | 0.0080 ms | 0.0367 ms |
+
+Lookups got slightly *slower* (0.002 -> 0.024 ms) because each one now decodes a
+64-word block. That is the intended trade: a bounded ~24 microseconds instead of
+a one-off 208 ms plus permanent memory. Both are far inside the 20 ms budget; the
+lazy version wins on cold start and heap, which is what a 2 MB dataset in a
+service worker needs.
+
+**Two silent-corruption bugs the build now prevents.** Both produced files that
+looked fine and a "success" message:
+
+1. **33,206 entries (25%) were corrupt.** The 64-character base64 alphabet was
+   too small for the 117 codes the scheme needs, so `ALPHABET[code]` returned
+   `undefined` and the string "undefined" was concatenated into the payload. The
+   range guard compared against a hand-written constant (117) rather than the
+   real alphabet length, so it never fired. Fixed with a 123-character alphabet,
+   the guard bound-checked against `ALPHABET.length`, and two build-time
+   assertions: every payload character must be in the alphabet, and every entry
+   must survive an encode/decode round trip. The build now refuses to write a
+   file that fails either.
+2. **22 entries were silently dropped** because CMUdict allows a trailing
+   `#` comment (`gdp G IY1 D IY1 P IY1 # abbrev`), and the parser treated `#` as
+   a phone. Every Irish and Finnish proper noun in the set was lost, plus `gdp`
+   and `hiv` -- words a learner plausibly selects.
+
+**Expectations come from the pinned file, not from memory.** Two assumptions
+written from memory were simply wrong: `schedule` is `S K EH1 JH UH0 L` upstream,
+not `S CH EH1 D Y UW0 L`; and not every entry has exactly one primary stress --
+**144 have none** (`a` = `AH0`, `'cause` = `K AH0 Z`) and **1,789 have more than
+one**. Those are correct CMUdict data for reduced function words. The invariant
+is "at most one", and `check-ipa.mjs` reports the outliers instead of assuming
+they cannot exist.
+
+**Variants.** CMUdict keys alternate pronunciations `word`, `word(2)`,
+`word(3)`; there are 9,114 variant entries. Spec Phase 3 names "record" as an
+acceptance word because it is ambiguous ("REC-ord" vs "re-CORD"), so
+`lookupVariants()` exists to reach them -- `lookup()` cannot, because it strips
+everything outside `[a-z']` and would turn `record(2)` back into `record`.
+
+**Not yet wired.** `src/ipa/lookup.ts` compiles, lints and is tested, but no
+entrypoint imports it and WXT does not copy `src/ipa/dict/` into the bundle.
+`wxt build` therefore still reports 45.84 kB, and the package does not yet
+contain the 2.09 MB dictionary. That wiring belongs with Phase 4's pop-up.
+
+---
+
+## 15. Rejected / not yet decided
 
 - **`chrome.offscreen`:** not used. A document for `speechSynthesis` is not needed
   because the side panel is already a document, and offscreen documents add a

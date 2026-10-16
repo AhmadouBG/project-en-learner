@@ -7,8 +7,12 @@ stats-*.json
 *.log
 .DS_Store
 
-# Generated dictionary data (rebuild with scripts/build_cmudict.ts)
-src/data/generated/
+# Generated dictionary data (rebuild with: node scripts/build-dict.mjs)
+# Generated rather than committed: cmudict.dict is 3.5 MB and the packed form
+# is 2.0 MB, which would dominate the repository. The shipped extension still
+# bundles the data, so there is no runtime download (spec 5.2).
+src/ipa/dict/
+.cache/
 
 # Local secrets: none needed in v1.0 (no backend, no account)
 *.local
