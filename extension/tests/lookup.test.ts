@@ -13,13 +13,7 @@ import { loadTable, lookup, lookupVariants, resetTableCache } from "../src/ipa/l
  * (spec 5.2: bundle it, but do not commit 2 MB to the repository).
  */
 
-const DICT_DIR = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "src",
-  "ipa",
-  "dict",
-);
+const DICT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "dict");
 const hasDict = existsSync(join(DICT_DIR, "dict.json"));
 
 const describeIfBuilt = hasDict ? describe : describe.skip;

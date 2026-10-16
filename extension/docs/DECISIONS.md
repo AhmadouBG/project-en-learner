@@ -465,10 +465,50 @@ acceptance word because it is ambiguous ("REC-ord" vs "re-CORD"), so
 `lookupVariants()` exists to reach them -- `lookup()` cannot, because it strips
 everything outside `[a-z']` and would turn `record(2)` back into `record`.
 
-**Not yet wired.** `src/ipa/lookup.ts` compiles, lints and is tested, but no
-entrypoint imports it and WXT does not copy `src/ipa/dict/` into the bundle.
-`wxt build` therefore still reports 45.84 kB, and the package does not yet
-contain the 2.09 MB dictionary. That wiring belongs with Phase 4's pop-up.
+**Wiring (done).** The data lives in `public/dict/`, **not** `src/ipa/dict/`.
+WXT only bundles what an entrypoint imports, so a data directory under `src/` is
+silently not shipped: the build succeeded, the package loaded, and there were no
+pronunciations at all. `public/` is copied byte-for-byte, which also keeps
+`dict.bin` a raw byte array -- a bundler that base64 or text-encoded it would
+corrupt every phone. Reachable at runtime via `chrome.runtime.getURL("dict/")`
+in `loadBundledTable()`.
+
+**The dictionary is answered by the background service worker**, not by content
+scripts, via a new `ipa:lookup` message. A content script per tab would multiply
+2.09 MB by the number of open tabs for a feature that needs answering once per
+selection. Missing words are answered `ok: false`, not an error: absence is a
+normal outcome, and the pop-up still has the dictionary API's transcription.
+
+**Verified in real Chrome**, not just Node (`npm run check:dict-runtime`):
+
+| | |
+|---|---|
+| package contains `dict/dict.json` | 770 kB |
+| package contains `dict/dict.bin` | 1,371 kB |
+| first lookup, `schedule` | `ˈskɛdʒʊl`, **19.0 ms** |
+| round trip p50 / p95 / max | **1.00 / 1.40 / 1.70 ms** |
+| `record` / `photograph` | `ɹəˈkɔɹd` / `ˈfoʊtəˌɡɹæf` |
+| alternate readings at runtime | 2 beyond the first |
+| unknown word | `ok: false`, not an error |
+
+The 19 ms first call is the 2 MB fetch over `chrome-extension://`, not the
+reader: the 208 ms eager decode is gone entirely. Everything after is ~1 ms.
+
+**Package size moved 45.84 kB -> 2.24 MB** (2.13 MB of files) because of this.
+Content-script bundle is unchanged.
+
+**A bug worth remembering from that check.** `Extensions.loadUnpacked` *returns*
+the new extension's id. The check originally scanned the target list for any
+`chrome-extension://` service worker, and this machine already had another
+extension's worker running -- so it picked the wrong id and every page load
+failed with `chrome-error://chromewebdata/`. The symptom was reported as "the
+extension page never became usable", which pointed nowhere near the cause. The
+check now uses the returned id, matches the worker by it, and verifies the page
+URL is actually `chrome-extension://` before trusting it.
+
+**Not yet built.** Nothing renders IPA yet -- Phase 4's pop-up consumes
+`ipa:lookup`. The handler, the packaging and the runtime path are done and
+verified; the UI is not.
 
 ---
 

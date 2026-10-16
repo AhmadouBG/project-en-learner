@@ -18,7 +18,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const DICT_DIR = join(ROOT, "src", "ipa", "dict");
+const DICT_DIR = join(ROOT, "public", "dict");
 
 /**
  * Common words a learner will actually select, plus the spec's own Phase 3

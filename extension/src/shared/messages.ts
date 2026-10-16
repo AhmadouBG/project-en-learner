@@ -86,7 +86,31 @@ export type ToBackground =
 export type FromBackground =
   | { readonly type: "dict:result"; readonly requestId: string; readonly result: DictionaryResult }
   | { readonly type: "panel:opened"; readonly target: PracticeTarget }
-  | { readonly type: "settings:changed" };
+  | { readonly type: "settings:changed" }
+  | {
+      /**
+       * Pronunciation from the bundled CMUdict (spec 5.2).
+       *
+       * Aimed at the background, not the page: the dictionary is 2.09 MB and
+       * loading it in every content script would multiply that by the number of
+       * open tabs, for a feature that only needs answering once per selection.
+       */
+      readonly type: "ipa:lookup";
+      readonly word: string;
+      readonly requestId: string;
+    };
+
+/** Reply to `ipa:lookup`. `ok: false` means "not in CMUdict", not an error. */
+export interface IpaResult {
+  readonly ok: boolean;
+  readonly word: string;
+  /** Present only when `ok`. Always `en-US`; CMUdict has no UK data (spec 5.2). */
+  readonly ipa?: string;
+  /** IPA per syllable, so the UI can highlight the stressed one (spec 4.2). */
+  readonly syllables?: readonly { readonly ipa: string; readonly stress: 0 | 1 | 2 }[];
+  /** Alternate readings, e.g. record -> REC-ord / re-CORD. */
+  readonly variants?: readonly { readonly ipa: string }[];
+}
 
 // ---------------------------------------------------------------------------
 // Messages: background <-> side panel

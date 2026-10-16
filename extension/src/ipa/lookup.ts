@@ -181,6 +181,40 @@ export function resetTableCache(): void {
   PHONES_FROM_INDEX = new Map();
 }
 
+/**
+ * Load the dictionary bundled with the extension.
+ *
+ * The generated files live in `public/dict/`, which WXT copies verbatim into the
+ * package, so they are addressed with `chrome.runtime.getURL` rather than
+ * imported. Importing would also work for the JSON, but `dict.bin` must stay a
+ * raw byte array with no transformation in between -- a bundler that base64s or
+ * text-encodes it would corrupt every phone.
+ *
+ * Only valid inside an extension context. Tests call `loadTable` with their own
+ * URLs instead.
+ */
+export async function loadBundledTable(): Promise<Table> {
+  const base = chrome.runtime.getURL("dict/");
+  return loadTable(`${base}dict.json`, `${base}dict.bin`);
+}
+
+/**
+ * Whether the dictionary is present in the installed package.
+ *
+ * A build made before `npm run build:dict` has no `public/dict/`, and the
+ * extension must degrade rather than throw: the pop-up can still show the
+ * dictionary API's transcriptions, so a missing local dictionary costs IPA
+ * highlighting, not the feature.
+ */
+export async function isDictionaryPresent(): Promise<boolean> {
+  try {
+    const response = await fetch(chrome.runtime.getURL("dict/dict.json"), { method: "HEAD" });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Byte offset of entry `i`'s phones, read straight from the index table. */
 function offsetOf(table: Table, i: number): number {
   const view = new DataView(

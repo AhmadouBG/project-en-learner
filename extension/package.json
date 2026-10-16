@@ -17,9 +17,10 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "postinstall": "wxt prepare",
-    "verify": "npm run lint && npm run compile && npm run test && npm run build && npm run check:ipa",
+    "verify": "npm run lint && npm run compile && npm run test && npm run build && npm run check:ipa && npm run check:dict-runtime",
     "build:dict": "node scripts/build-dict.mjs",
-    "check:ipa": "node scripts/check-ipa.mjs"
+    "check:ipa": "node scripts/check-ipa.mjs",
+    "check:dict-runtime": "node scripts/check-dict-runtime.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

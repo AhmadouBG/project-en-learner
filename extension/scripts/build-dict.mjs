@@ -2,7 +2,7 @@
  * Build the compact pronunciation dictionary (spec 5.2).
  *
  * Downloads CMUdict, converts it to a compact packed format and writes it to
- * `src/ipa/dict/`. The output is generated and gitignored: the repository stays
+ * `public/dict/`. The output is generated and gitignored: the repository stays
  * small, but the shipped extension still bundles the data with no runtime
  * network dependency. That is what spec 5.2 asks for ("bundle CMUdict converted
  * to a compact format ... lazy-loaded and cached in memory") and what the
@@ -36,7 +36,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const OUT_DIR = join(ROOT, "src", "ipa", "dict");
+/*
+ * Output goes in `public/`, which WXT copies verbatim into the extension package.
+ *
+ * `src/ipa/dict/` was the first choice and is wrong: WXT only bundles what an
+ * entrypoint imports, so a data directory under `src/` is silently not shipped
+ * and `wxt build` reports a package with no dictionary in it. `public/` is
+ * copied byte-for-byte, so the file arrives exactly as written, uncompressed and
+ * unhashed, and is reachable at runtime via `chrome.runtime.getURL()`.
+ */
+const OUT_DIR = join(ROOT, "public", "dict");
 const OUT_BIN = join(OUT_DIR, "dict.bin");
 const OUT_JSON = join(OUT_DIR, "dict.json");
 const CACHE = join(ROOT, ".cache", "cmudict.dict");

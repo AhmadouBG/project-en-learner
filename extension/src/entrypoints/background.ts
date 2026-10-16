@@ -1,4 +1,6 @@
 import { defineBackground } from "wxt/utils/define-background";
+import { loadBundledTable, lookup, lookupVariants } from "../ipa/lookup";
+import type { IpaResult } from "../shared/messages";
 
 /**
  * Background service worker (Phase 1).
@@ -59,6 +61,15 @@ export default defineBackground(() => {
       return false;
     }
 
+    if (type === "ipa:lookup") {
+      const word = (message as { word?: unknown }).word;
+      const requestId = (message as { requestId?: unknown }).requestId;
+      if (typeof word !== "string" || typeof requestId !== "string") return false;
+
+      void answerIpa(word, requestId, sendResponse);
+      return true;
+    }
+
     if (type !== "open-panel") return false;
 
     const windowId = sender.tab?.windowId;
@@ -70,6 +81,46 @@ export default defineBackground(() => {
     void openPanel(windowId).then(() => sendResponse({ type: "settings:changed" }));
     return true;
   });
+
+/**
+ * Answer a pronunciation request from the bundled CMUdict (spec 5.2).
+ *
+ * Answers "not found" rather than an error when the word is absent: a missing
+ * entry is a normal outcome, not a failure, and the pop-up still has the
+ * dictionary API's transcription to fall back on.
+ *
+ * A failed load is also answered rather than thrown, so one broken build cannot
+ * wedge the message channel.
+ */
+async function answerIpa(
+  word: string,
+  requestId: string,
+  sendResponse: (response: unknown) => void,
+): Promise<void> {
+  let result: IpaResult;
+  try {
+    const table = await loadBundledTable();
+    const primary = lookup(table, word);
+    if (!primary) {
+      result = { ok: false, word };
+    } else {
+      const variants = lookupVariants(table, word)
+        .map((v) => ({ ipa: v.ipa }))
+        // The primary reading is first in `variants`, so drop it from the list.
+        .filter((v, i) => i > 0 || v.ipa !== primary.ipa);
+      result = {
+        ok: true,
+        word: primary.word,
+        ipa: primary.ipa,
+        syllables: primary.syllables.map((s) => ({ ipa: s.ipa, stress: s.stress })),
+        variants,
+      };
+    }
+  } catch {
+    result = { ok: false, word };
+  }
+  sendResponse({ type: "ipa:result", requestId, result });
+}
 });
 
 async function createContextMenu(): Promise<void> {
