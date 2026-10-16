@@ -27,6 +27,12 @@ import type { FromBackground } from "../shared/messages";
 /** Where the content script runs; see DECISIONS.md 8b for why not `<all_urls>`. */
 const MATCHES = ["http://*/*", "https://*/*", "file:///*"];
 
+/**
+ * Liveness ping. Chrome leaves content scripts injected when an extension is
+ * disabled or reloaded, so before showing any UI the content script asks the
+ * service worker whether it is still there. See the note in `main()`.
+ */
+
 /** `.pdf` URLs are served by Chrome's built-in PDF viewer. See DECISIONS.md 8b. */
 const EXCLUDE_MATCHES = ["http://*/*.pdf", "https://*/*.pdf", "file://*/*.pdf"];
 
@@ -47,6 +53,52 @@ export default defineContentScript({
   runAt: "document_idle",
 
   async main(ctx) {
+    /**
+     * Liveness.
+     *
+     * Chrome does NOT un-inject a content script when the extension is disabled,
+     * reloaded or uninstalled: an already-injected script keeps running in that
+     * tab until the page is refreshed. Left alone, that means a working
+     * micro-button on every page, from an extension the user has switched off.
+     *
+     * So before showing any UI we ping the service worker. If nobody answers, the
+     * extension is gone and we tear ourselves down completely: listeners, DOM,
+     * storage subscription. A page refresh brings it back if the user re-enables
+     * the extension.
+     *
+     * A long-lived port would push this signal instead of polling, but
+     * `runtime.onConnect` is not implemented in WXT's build-time background
+     * validation, so a ping over the message channel we already have is the
+     * pragmatic choice. It costs one local IPC per accepted selection, never per
+     * event.
+     */
+    let alive = true;
+
+    const isAlive = async (): Promise<boolean> => {
+      if (!alive || chrome.runtime.id === undefined) return false;
+      try {
+        const reply = await sendToBackground<FromBackground>(
+          { type: "content:ready" },
+          (r) => r,
+        );
+        if (reply === null) {
+          alive = false;
+          return false;
+        }
+        return true;
+      } catch {
+        // ContextGoneError: the extension was disabled, reloaded or removed.
+        alive = false;
+        return false;
+      }
+    };
+
+    /** Full teardown: the extension is gone, so stop doing anything at all. */
+    const shutdown = (): void => {
+      alive = false;
+      stop();
+      removeStorageListener();
+    };
     /**
      * The running UI, or null when the feature is switched off.
      *
@@ -75,10 +127,22 @@ export default defineContentScript({
       const watcher = createSelectionWatcher({
         enabled: true,
         onSelection: (selection: ResolvedSelection) => {
-          void button.show(selection);
+          // Never show UI from a script whose extension has gone away.
+          void (async () => {
+            if (!(await isAlive())) {
+              shutdown();
+              return;
+            }
+            await button.show(selection);
+          })();
         },
         onDismiss: () => {
           button.hide();
+        },
+        // Follow the selection while the page scrolls, so the button stays next
+        // to the words instead of being left behind pointing at other text.
+        onUpdate: (next) => {
+          button.follow(next);
         },
         // Clicking our own button is not a new selection, so its events must be
         // ignored by the watcher (spec 5.1).
@@ -124,8 +188,13 @@ export default defineContentScript({
     };
     chrome.storage.onChanged.addListener(onStorageChanged);
 
-    ctx.onInvalidated(() => {
+    /** Declared so the port-disconnect path can detach it too. */
+    function removeStorageListener(): void {
       chrome.storage.onChanged.removeListener(onStorageChanged);
+    }
+
+    ctx.onInvalidated(() => {
+      removeStorageListener();
       stop();
     });
   },

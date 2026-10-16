@@ -49,7 +49,17 @@ export default defineBackground(() => {
   // for the async reply.
   chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
     if (typeof message !== "object" || message === null) return false;
-    if ((message as { type?: unknown }).type !== "open-panel") return false;
+    const type = (message as { type?: unknown }).type;
+    // Liveness ping. Chrome leaves content scripts injected when an extension is
+    // disabled or reloaded, so they need a way to notice we are gone. The content
+    // script pings before showing any UI; if we do not answer, it tears itself
+    // down. A null reply means "no extension", so this must answer synchronously.
+    if (type === "content:ready") {
+      sendResponse({ type: "settings:changed" });
+      return false;
+    }
+
+    if (type !== "open-panel") return false;
 
     const windowId = sender.tab?.windowId;
     if (typeof windowId !== "number") {

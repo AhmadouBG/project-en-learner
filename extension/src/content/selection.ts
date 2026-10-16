@@ -43,6 +43,14 @@ export interface WatcherOptions {
   readonly onSelection: (selection: ResolvedSelection) => void;
   /** Called when the selection went away, or the user dismissed our UI. */
   readonly onDismiss: () => void;
+  /**
+   * Called on every scroll while a selection is active, with freshly measured
+   * geometry, so the UI can follow the text instead of being stranded.
+   *
+   * Pass `null` once the selection has left the viewport, which is the point at
+   * which following stops being meaningful and the UI should hide.
+   */
+  readonly onUpdate?: (selection: ResolvedSelection | null) => void;
   /** Injectable clock, so the gate policy stays testable. */
   readonly now?: () => number;
   /** Debounce delay; defaults to the spec's ~150 ms. */
@@ -68,7 +76,7 @@ export interface WatcherController {
 export function targetFromSelection(
   selection: ResolvedSelection,
   accent: PracticeTarget["accent"],
-  speed: number,
+  speed: number
 ): PracticeTarget {
   const text = selection.text;
   return {
@@ -96,41 +104,64 @@ export function readSelection(): ResolvedSelection | null {
   const text = normalizeText(raw);
   if (!isSpeakableText(text)) return null;
 
-  // Prefer composed ranges so text inside a web component is reachable. Bound to
-  // `selection`, since this is a method on the Selection interface.
-  let range: Range | StaticRange | null = null;
-  // `getComposedRanges` is newer than some TypeScript DOM libs, so it is
-  // declared here with an explicit `this`, which also satisfies ESLint's
-  // unbound-method rule when we alias it off the instance.
+  // `getComposedRanges` is newer than some TypeScript DOM libs, so it is declared
+  // here with an explicit `this`, which also satisfies ESLint's unbound-method
+  // rule when we alias it off the instance.
   type ComposedRangeSelection = Selection & {
     getComposedRanges?: (this: Selection) => StaticRange[];
   };
-  const composedHost = selection as ComposedRangeSelection;
 
-  // Called as a method on the object, never aliased, so the receiver is kept.
+  /**
+   * Candidate ranges, most trustworthy first.
+   *
+   * `getComposedRanges()` returns a `StaticRange`, which only guarantees
+   * `startContainer` and `endContainer`: it has NO `getBoundingClientRect()` and
+   * NO `getClientRects()`. Preferring it therefore silently degraded geometry to
+   * the anchor *element's* box, which anchored the button to the end of the whole
+   * paragraph instead of the end of the selected words -- measured as a 658 px
+   * error on a 335 px-wide selection.
+   *
+   * So the real `Range` is tried first. Composed ranges are only a fallback, for
+   * text inside a shadow root where `getRangeAt(0)` fails or is collapsed.
+   */
+  const candidates: (Range | StaticRange)[] = [];
+  try {
+    candidates.push(selection.getRangeAt(0));
+  } catch {
+    // Collapsed or cross-shadow selection: fall through to composed ranges.
+  }
+
+  const composedHost = selection as ComposedRangeSelection;
   if (typeof composedHost.getComposedRanges === "function") {
     try {
-      const ranges = composedHost.getComposedRanges();
-      if (ranges.length > 0) range = ranges[0] ?? null;
+      // Called as a method on the object, so the receiver is preserved.
+      for (const composed of composedHost.getComposedRanges()) {
+        candidates.push(composed);
+      }
     } catch {
-      // Some engines throw on a collapsed selection; fall through.
-    }
-  }
-  if (!range) {
-    try {
-      range = selection.getRangeAt(0);
-    } catch {
-      return null;
+      // Some engines throw on a collapsed selection.
     }
   }
 
-  const anchorNode = selection.anchorNode ?? range.startContainer ?? null;
-  const focusNode = selection.focusNode ?? range.endContainer ?? null;
+  // The first candidate that yields a real rectangle wins.
+  let rect: DOMRect | null = null;
+  let range: Range | StaticRange | null = null;
+  for (const candidate of candidates) {
+    rect = rectOfRange(candidate, selection.anchorNode);
+    if (rect) {
+      range = candidate;
+      break;
+    }
+  }
 
-  const rect = rectOfRange(range, anchorNode);
-  if (!rect) return null;
+  if (!rect || !range) return null;
 
-  return { text, rect, anchorNode, focusNode };
+  return {
+    text,
+    rect,
+    anchorNode: selection.anchorNode ?? range.startContainer ?? null,
+    focusNode: selection.focusNode ?? range.endContainer ?? null,
+  };
 }
 
 /**
@@ -260,9 +291,35 @@ export function createSelectionWatcher(
     if (!selection || selection.isCollapsed) clear();
   };
 
+  /**
+ * Follow the text while the user scrolls.
+ *
+ * The button is `position: fixed`, so without this it would be left behind,
+ * pointing at whatever text had scrolled under it. Re-measuring on scroll is the
+ * only way to keep it attached to the selection.
+ */
+  const onScroll = () => {
+    if (destroyed || !current || !options.onUpdate) return;
+
+    const fresh = readSelection();
+    if (!fresh || !isActionableSelection(fresh, window.location.href)) {
+      options.onUpdate(null);
+      return;
+    }
+
+    // Once the text has left the viewport there is nothing to point at, so the UI
+    // should get out of the way rather than clamp itself to a screen edge.
+    const r = fresh.rect;
+    const offScreen =
+      r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth;
+    options.onUpdate(offScreen ? null : fresh);
+  };
+
   document.addEventListener("mouseup", onPointerUp, true);
   document.addEventListener("keyup", onKeyUp, true);
   document.addEventListener("selectionchange", onSelectionChange);
+  // `passive` so we never block scrolling; we only read geometry.
+  window.addEventListener("scroll", onScroll, { capture: true, passive: true });
 
   return {
     destroy() {
@@ -271,6 +328,7 @@ export function createSelectionWatcher(
       document.removeEventListener("mouseup", onPointerUp, true);
       document.removeEventListener("keyup", onKeyUp, true);
       document.removeEventListener("selectionchange", onSelectionChange);
+      window.removeEventListener("scroll", onScroll, { capture: true });
     },
 
     dismiss() {

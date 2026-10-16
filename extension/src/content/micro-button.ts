@@ -71,12 +71,20 @@ const CSS = `
 
 .es-button svg { display: block; pointer-events: none; }
 
-/* First-run tooltip, spec 4.1: "Click to practise this text", shown once. */
+/* First-run tooltip, spec 4.1: "Click to practise this text", shown once.
+ *
+ * It must open AWAY from the selection. The button normally sits above the text,
+ * so a tooltip hanging below it would land on top of the words just selected --
+ * exactly when the user wants to read them. The --above modifier is applied at
+ * runtime to match whichever side the button ended up on.
+ */
 .es-tooltip {
   position: absolute;
   top: calc(${SIZE_PX}px + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+  /* Right-aligned to the button rather than centred. The button is itself
+     right-aligned to the selection, so a centred tooltip would hang out past the
+     end of the text. */
+  right: 0;
   background: #202124;
   color: #fff;
   font: 12px/1.3 -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -86,14 +94,28 @@ const CSS = `
   pointer-events: none;
 }
 
+/* Arrow, pointing away from the button in whichever direction it opens. */
 .es-tooltip::before {
   content: "";
   position: absolute;
   top: -4px;
-  left: 50%;
-  margin-left: -4px;
+  /* Arrow sits over the button, which is at the tooltip's right edge. */
+  right: 8px;
   border: 4px solid transparent;
   border-bottom-color: #202124;
+}
+
+/* Button above the selection: open the tooltip upward, clear of the text. */
+.es-tooltip--above {
+  top: auto;
+  bottom: calc(${SIZE_PX}px + 6px);
+}
+
+.es-tooltip--above::before {
+  top: auto;
+  bottom: -4px;
+  border-bottom-color: transparent;
+  border-top-color: #202124;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -115,6 +137,11 @@ export interface MicroButtonOptions {
 export interface MicroButtonController {
   /** Show next to the given selection, clamped inside the viewport. */
   show(selection: ResolvedSelection): Promise<void>;
+  /**
+   * Follow the selection after a scroll. `null` means the text has left the
+   * viewport, so hide rather than clamp to a screen edge.
+   */
+  follow(selection: ResolvedSelection | null): void;
   hide(): void;
   destroy(): void;
   /** The host element, so the watcher can ignore our own events. */
@@ -160,6 +187,7 @@ export function createMicroButton(
 ): MicroButtonController {
   let ui: ShadowUiController<{ container: HTMLElement }> | null = null;
   let selection: ResolvedSelection | null = null;
+  let tooltip: HTMLElement | null = null;
   let releaseFocus: (() => void) | null = null;
   let stopDismissalWatcher: (() => void) | null = null;
 
@@ -194,6 +222,7 @@ export function createMicroButton(
           if (options.tooltip) {
             const tip = el({ tag: "div", class: "es-tooltip", text: options.tooltip });
             m2.container.appendChild(tip);
+            tooltip = tip;
           }
 
           buttonEl.addEventListener("click", (event) => {
@@ -204,16 +233,57 @@ export function createMicroButton(
             if (chosen) options.onActivate(chosen);
           });
 
-          // Esc to dismiss, and hide when the page scrolls the anchor away.
+          // Esc to dismiss, and hide as soon as the page scrolls. The button is
+          // position:fixed so it cannot follow the text, so scrolling would leave
+          // it stranded pointing at unrelated words.
           stopDismissalWatcher = watchForDismissal(
             m2.shadow,
             () => selection?.rect ?? null,
             () => hide(),
+            { onScroll: "never" },
           );
 
           return { container: m2.container };
         },
       });
+  };
+
+  /**
+   * Position the button directly above the right-hand end of the selection.
+   *
+   * The horizontal anchor is the BUTTON's own width, never the tooltip's. Using
+   * the tooltip width here pushed the button ~150 px to the left of the words,
+   * because the tooltip is a sibling that overhangs to the left (see
+   * `.es-tooltip` in the CSS above). The button is what must sit on the end of the
+   * selection; the tooltip is decoration hanging off it.
+   */
+  const place = (next: ResolvedSelection): void => {
+    if (!ui) return;
+
+    // The tooltip makes the box taller so we do not flip below when there is only
+    // 28 px of room above, but it must not affect the horizontal anchor.
+    const height = options.tooltip ? SIZE_PX + 30 : SIZE_PX;
+
+    const at = placeNear(next.rect, { width: SIZE_PX, height }, 8, "right");
+    let left = at.left;
+
+    // The tooltip overhangs to the left of the button, so if the selection ends
+    // near the left edge of the viewport it would run off-screen. In that one case
+    // we shift the button right, trading a few pixels of anchoring for a readable
+    // tooltip. It only ever happens on the first run.
+    const tooltipWidth = tooltip?.offsetWidth ?? 0;
+    if (tooltipWidth > 0 && left - tooltipWidth < 8) {
+      left = Math.min(8 + tooltipWidth, window.innerWidth - SIZE_PX - 8);
+    }
+
+    // Position the container, not the host: see the note on `.es-root`.
+    ui.container.style.left = `${left}px`;
+    ui.container.style.top = `${at.top}px`;
+
+    // The tooltip must open away from the selected text.
+    if (tooltip) {
+      tooltip.classList.toggle("es-tooltip--above", at.placement === "above");
+    }
   };
 
   return {
@@ -223,19 +293,28 @@ export function createMicroButton(
       if (!ui) return;
 
       ui.mount();
-
-      const { width, height } = {
-        width: SIZE_PX,
-        height: options.tooltip ? SIZE_PX + 30 : SIZE_PX,
-      };
-      const at = placeNear(next.rect, { width, height });
-
-      // Position the container, not the host: see the note on `.es-root`.
-      ui.container.style.left = `${at.left}px`;
-      ui.container.style.top = `${at.top}px`;
+      place(next);
 
       // Focus the button so the shortcut and keyboard users can act on it.
       releaseFocus = trapFocus(ui.container);
+    },
+
+    /**
+     * Re-place the button because the page scrolled.
+     *
+     * Called with fresh geometry on every scroll event, so the button stays
+     * attached to the selected words instead of being left behind pointing at
+     * whatever text has since scrolled under it. Passing `null` means the text
+     * has left the viewport, so there is nothing to point at.
+     */
+    follow(next: ResolvedSelection | null) {
+      if (!ui) return;
+      if (!next) {
+        hide();
+        return;
+      }
+      selection = next;
+      place(next);
     },
 
     hide,

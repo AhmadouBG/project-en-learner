@@ -162,6 +162,36 @@ describe("placeNear", () => {
     const p = placeNear(rect(400, 300), box);
     expect(p.left).toBe(400 + 50 - 14);
     expect(p.top).toBe(300 - 28 - 8);
+    expect(p.placement).toBe("above");
+  });
+
+  describe('align: "right"', () => {
+    it("puts the box's right edge on the selection's right edge", () => {
+      viewport(1000, 800);
+      const p = placeNear(rect(400, 300), box, 8, "right");
+      // rect(400) has width 100, so its right edge is 500; a 28 px box starts at 472.
+      expect(p.left).toBe(500 - 28);
+      expect(p.placement).toBe("above");
+    });
+
+    it("still clamps inside the right edge of the viewport", () => {
+      viewport(300, 800);
+      const p = placeNear(rect(280, 300), box, 8, "right");
+      expect(p.left).toBe(300 - 28 - 8);
+    });
+
+    it("still clamps inside the left edge when the selection is off-screen", () => {
+      viewport(1000, 800);
+      const p = placeNear(rect(-300, 300), box, 8, "right");
+      expect(p.left).toBe(8);
+    });
+
+    it("still flips below when there is no room above", () => {
+      viewport(1000, 800);
+      const p = placeNear(rect(400, 2), box, 8, "right");
+      expect(p.placement).toBe("below");
+      expect(p.top).toBe(2 + 18 + 8);
+    });
   });
 
   it("flips below when there is no room above", () => {
@@ -260,6 +290,51 @@ describe("watchForDismissal", () => {
     const nearRect = { bottom: 300, top: 280 } as DOMRect;
     watchForDismissal(shadow, () => nearRect, () => (dismissed += 1));
 
+    window.dispatchEvent(new Event("scroll"));
+    expect(dismissed).toBe(0);
+  });
+
+  // The micro-button is position:fixed, so it cannot follow the text. Scrolling
+  // at all must hide it, otherwise it is left stranded mid-screen pointing at
+  // unrelated words.
+  it('hides on ANY scroll when onScroll is "any"', () => {
+    const { shadow } = makeHost();
+    let dismissed = 0;
+    Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+    // Anchor still comfortably on screen, so "far" mode would keep showing it.
+    const nearRect = { bottom: 300, top: 280 } as DOMRect;
+    watchForDismissal(shadow, () => nearRect, () => (dismissed += 1), {
+      onScroll: "any",
+    });
+
+    window.dispatchEvent(new Event("scroll"));
+    expect(dismissed).toBe(1);
+  });
+
+  it('keeps the "far" behaviour as the default', () => {
+    const { shadow } = makeHost();
+    let dismissed = 0;
+    Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+    const nearRect = { bottom: 300, top: 280 } as DOMRect;
+    watchForDismissal(shadow, () => nearRect, () => (dismissed += 1));
+
+    window.dispatchEvent(new Event("scroll"));
+    expect(dismissed).toBe(0);
+  });
+
+  // The micro-button repositions itself on every scroll event, so scrolling must
+  // never dismiss it, not even when the anchor is long gone.
+  it('never dismisses on scroll when onScroll is "never"', () => {
+    const { shadow } = makeHost();
+    let dismissed = 0;
+    Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+    // Far outside the viewport, so both "far" and "any" would dismiss.
+    const farRect = { bottom: -5000, top: -5020 } as DOMRect;
+    watchForDismissal(shadow, () => farRect, () => (dismissed += 1), {
+      onScroll: "never",
+    });
+
+    window.dispatchEvent(new Event("scroll"));
     window.dispatchEvent(new Event("scroll"));
     expect(dismissed).toBe(0);
   });

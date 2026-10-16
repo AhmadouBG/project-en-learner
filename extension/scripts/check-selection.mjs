@@ -97,6 +97,7 @@ function startFixtureServer() {
 <div id="pad-top">scroll down</div>
 <p class="corner" id="top-left">Top left corner selection text</p>
 <p id="middle">Could you schedule the meeting for tomorrow?</p>
+<p id="scroll-target">A dedicated target for the scroll-following check.</p>
 <p class="corner" id="bottom-right">Bottom right corner selection text</p>
 <p><label for="pw">Password: </label><input id="pw" type="password" value="hunter2"></p>
 <p id="divider">||| *** ---</p>
@@ -143,14 +144,26 @@ const SELECT_SNIPPET = (id) => `(async () => {
 const BUTTON_STATE = `(() => {
   const host = document.querySelector('${HOST_TAG}');
   if (!host) return JSON.stringify({ present: false });
-  const root = host.shadowRoot && host.shadowRoot.querySelector('.es-root');
-  const btn = host.shadowRoot && host.shadowRoot.querySelector('.es-button');
+  const shadow = host.shadowRoot;
+  const root = shadow && shadow.querySelector('.es-root');
+  const btn = shadow && shadow.querySelector('.es-button');
+  const tip = shadow && shadow.querySelector('.es-tooltip');
   if (!root || !btn) {
     return JSON.stringify({ present: true, hasButton: !!btn, hasRoot: !!root });
   }
   const r = btn.getBoundingClientRect();
-  const shadow = host.shadowRoot;
-  const styleNodes = shadow ? Array.from(shadow.querySelectorAll('style')) : [];
+
+  // The rect of the text the user actually selected, for an overlap check.
+  let selRect = null;
+  const sel = getSelection();
+  if (sel && sel.rangeCount > 0) {
+    const sr = sel.getRangeAt(0).getBoundingClientRect();
+    selRect = { left: sr.left, top: sr.top, right: sr.right, bottom: sr.bottom };
+  }
+
+  const overlaps = (a, b) =>
+    !!a && !!b && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
   return JSON.stringify({
     present: true,
     hasButton: true,
@@ -159,15 +172,20 @@ const BUTTON_STATE = `(() => {
     rootPosition: getComputedStyle(root).position,
     rootLeft: root.style.left,
     rootTop: root.style.top,
-    // Diagnostics: what is actually inside the shadow root?
-    shadowChildTags: shadow ? Array.from(shadow.children).map(n => n.tagName.toLowerCase()) : [],
-    styleCount: styleNodes.length,
-    styleText: styleNodes.map(s => (s.textContent || '').slice(0, 120)),
-    hasEsRootRule: styleNodes.some(s => (s.textContent || '').includes('.es-root')),
-    hostStyleAttr: host.getAttribute('style'),
     // Real rendered geometry of the button, not of the 0x0 host.
     left: r.left, top: r.top, width: r.width, height: r.height,
     viewportW: innerWidth, viewportH: innerHeight,
+    // Neither the button nor the tooltip may cover the selected text. The
+    // tooltip one was a real bug: it hung below a button that sits above the
+    // selection, so it landed on the words the user had just selected.
+    selRect,
+    buttonOverlapsSelection: overlaps(r, selRect),
+    hasTooltip: !!tip,
+    tooltipWidth: tip ? tip.offsetWidth : 0,
+    containerLeft: root.style.left,
+    containerWidth: Math.round(root.getBoundingClientRect().width),
+    innerWidth: innerWidth,
+    tooltipOverlapsSelection: tip ? overlaps(tip.getBoundingClientRect(), selRect) : false,
   });
 })()`;
 
@@ -185,7 +203,7 @@ async function checkSettingToggle(cdp, sessionId, log) {
   const failures = [];
   const ROOT_KEY = "es.store";
 
-  const setSetting = async (showButtonOnSelection) =>
+  const setSetting = async (showButtonOnSelection, contextId) =>
     evaluate(
       cdp,
       sessionId,
@@ -202,6 +220,7 @@ async function checkSettingToggle(cdp, sessionId, log) {
          await chrome.storage.local.set({ [${JSON.stringify(ROOT_KEY)}]: next });
          return 'written';
        })()`,
+      contextId,
     ).catch((e) => `error: ${e.message}`);
 
   // Needs the extension's own storage, so run inside its isolated world.
@@ -211,21 +230,27 @@ async function checkSettingToggle(cdp, sessionId, log) {
     return failures;
   }
 
+  // A different element from the earlier checks on purpose: check 6 pressed Esc on
+  // the #middle selection, and the gate deliberately refuses to resurrect a
+  // dismissed selection. Re-picking #middle here would be testing the gate
+  // instead of the setting.
+  const TARGET = "top-left";
+
   // --- switch OFF while the page stays open
   await evaluate(cdp, sessionId, `getSelection().removeAllRanges()`).catch(() => null);
   await sleep(200);
-  await evaluate(cdp, sessionId, SELECT_SNIPPET("middle"));
+  await evaluate(cdp, sessionId, SELECT_SNIPPET(TARGET));
   await sleep(500);
   let state = JSON.parse(await evaluate(cdp, sessionId, BUTTON_STATE));
   if (!state.present) {
     failures.push("setup: expected the button before switching the setting off");
   }
 
-  await evaluate(cdp, sessionId, setSetting(false), extContext);
+  await setSetting(false, extContext);
   await sleep(700);
   await evaluate(cdp, sessionId, `getSelection().removeAllRanges()`).catch(() => null);
   await sleep(200);
-  await evaluate(cdp, sessionId, SELECT_SNIPPET("middle"));
+  await evaluate(cdp, sessionId, SELECT_SNIPPET(TARGET));
   await sleep(600);
   state = JSON.parse(await evaluate(cdp, sessionId, BUTTON_STATE));
   if (state.present) {
@@ -235,11 +260,11 @@ async function checkSettingToggle(cdp, sessionId, log) {
   }
 
   // --- switch back ON, still without a refresh
-  await evaluate(cdp, sessionId, setSetting(true), extContext);
+  await setSetting(true, extContext);
   await sleep(700);
   await evaluate(cdp, sessionId, `getSelection().removeAllRanges()`).catch(() => null);
   await sleep(200);
-  await evaluate(cdp, sessionId, SELECT_SNIPPET("middle"));
+  await evaluate(cdp, sessionId, SELECT_SNIPPET("bottom-right"));
   await sleep(600);
   state = JSON.parse(await evaluate(cdp, sessionId, BUTTON_STATE));
   if (!state.present) {
@@ -264,6 +289,74 @@ function findExtensionContext() {
     if (c.isIsolated && c.origin.startsWith("chrome-extension://")) return c.id;
   }
   return undefined;
+}
+
+/** Find the extension's MV3 service worker target. */
+async function findServiceWorkerTarget(cdp) {
+  for (let i = 0; i < 20; i += 1) {
+    const { targetInfos } = await cdp.send("Target.getTargets");
+    const sw = targetInfos.find(
+      (t) => t.type === "service_worker" && t.url.startsWith("chrome-extension://"),
+    );
+    if (sw) return sw.targetId;
+    await sleep(300);
+  }
+  return undefined;
+}
+
+/**
+ * Assert the UI does not survive the extension being reloaded or disabled.
+ *
+ * Chrome does NOT un-inject a content script when the extension is disabled or
+ * reloaded, so without an explicit signal the micro-button keeps working from an
+ * extension the user has switched off. The content script holds a long-lived port
+ * for exactly this reason.
+ *
+ * Simulated with `chrome.runtime.reload()` in the service worker, which tears
+ * the extension down the same way a reload from chrome://extensions does, but
+ * without reloading the page.
+ */
+async function checkTearsDownOnExtensionReload(cdp, sessionId, log) {
+  const failures = [];
+
+  await evaluate(cdp, sessionId, `getSelection().removeAllRanges()`).catch(() => null);
+  await sleep(200);
+  await evaluate(cdp, sessionId, SELECT_SNIPPET("far"));
+  await sleep(500);
+  let state = JSON.parse(await evaluate(cdp, sessionId, BUTTON_STATE));
+  if (!state.present) {
+    failures.push("setup: expected the button while the extension is alive");
+    return failures;
+  }
+
+  const swTarget = await findServiceWorkerTarget(cdp);
+  if (!swTarget) {
+    failures.push("could not find the service worker to reload from");
+    return failures;
+  }
+  const { sessionId: swSession } = await cdp.send("Target.attachToTarget", {
+    targetId: swTarget,
+    flatten: true,
+  });
+  await cdp.send("Runtime.enable", {}, swSession);
+  await evaluate(cdp, swSession, "chrome.runtime.reload()").catch(() => null);
+  await sleep(1800);
+
+  // Select again without reloading the page.
+  await evaluate(cdp, sessionId, `getSelection().removeAllRanges()`).catch(() => null);
+  await sleep(200);
+  await evaluate(cdp, sessionId, SELECT_SNIPPET("far"));
+  await sleep(700);
+  state = JSON.parse(await evaluate(cdp, sessionId, BUTTON_STATE));
+  if (state.present) {
+    failures.push(
+      "the micro-button still worked after the extension was reloaded (stale content script)",
+    );
+  } else {
+    log("PASS  : the UI tears itself down when the extension is reloaded");
+  }
+
+  return failures;
 }
 
 async function main() {
@@ -382,6 +475,37 @@ async function main() {
     if (Math.round(state.width) !== 28 || Math.round(state.height) !== 28) {
       failures.push(`button is ${state.width}x${state.height}, expected 28x28`);
     }
+    // Never cover the words the user selected, and never let the tooltip do it.
+    if (state.buttonOverlapsSelection) {
+      failures.push("the button overlaps the selected text");
+    }
+    if (state.tooltipOverlapsSelection) {
+      failures.push("the tooltip overlaps the selected text");
+    }
+    if (state.hasTooltip) {
+      console.log("PASS  : button and tooltip both clear of the selected text");
+    }
+
+    // The button must sit directly above the END of the selection, right edge on
+    // right edge. Two regressions are guarded here:
+    //   1. the placement box was sized to the TOOLTIP width, pushing the button
+    //      ~150 px left;
+    //   2. geometry came from a StaticRange with no rect methods, silently
+    //      falling back to the whole paragraph element's box (658 px error).
+    if (state.selRect) {
+      const buttonRight = state.left + state.width;
+      const gap = Math.abs(buttonRight - state.selRect.right);
+      if (gap > 4) {
+        failures.push(
+          `the button is ${gap.toFixed(0)} px from the end of the selection ` +
+            `(button right ${buttonRight.toFixed(0)}, selection right ${state.selRect.right.toFixed(0)}, ` +
+            `containerLeft ${state.containerLeft}, containerWidth ${state.containerWidth}, ` +
+            `tooltipWidth ${state.tooltipWidth}, innerWidth ${state.innerWidth})`,
+        );
+      } else {
+        console.log(`PASS  : the button sits on the end of the selection (${gap.toFixed(0)} px off)`);
+      }
+    }
   }
 
   // --- 2. Inside the viewport ----------------------------------------------
@@ -487,7 +611,56 @@ async function main() {
     }
   }
 
-  // --- 7. The user's selection was not destroyed ----------------------------
+  // --- 7. The button FOLLOWS the text while scrolling ----------------------
+  // A dedicated fixture element, so this check does not depend on which other
+  // checks already ran: #middle is Esc-dismissed above and the gate correctly
+  // refuses to resurrect it, which is a separate feature under test.
+  await evaluate(browser, sessionId, SELECT_SNIPPET("scroll-target"));
+  await sleep(500);
+  const beforeScroll = JSON.parse(await evaluate(browser, sessionId, BUTTON_STATE));
+  if (!beforeScroll.present) {
+    failures.push("setup for the scroll check failed: no button");
+  } else {
+    const startTop = beforeScroll.top;
+
+    await evaluate(browser, sessionId, "window.scrollBy(0, 60)");
+    await sleep(400);
+    const afterScroll = JSON.parse(await evaluate(browser, sessionId, BUTTON_STATE));
+
+    if (!afterScroll.present) {
+      failures.push("the button vanished while scrolling; it should follow the text");
+    } else {
+      const moved = Math.abs(afterScroll.top - startTop);
+      if (moved < 40) {
+        failures.push(
+          `the button did not follow the text: moved ${moved.toFixed(0)} px for a 60 px scroll`,
+        );
+      } else {
+        console.log(
+          `PASS  : the button follows the text (moved ${moved.toFixed(0)} px for a 60 px scroll)`,
+        );
+      }
+      if (afterScroll.buttonOverlapsSelection) {
+        failures.push("the button overlaps the text after following it");
+      }
+    }
+
+    // Once the text leaves the viewport there is nothing to point at, so the
+    // button must not stay glued to a screen edge.
+    await evaluate(browser, sessionId, "window.scrollBy(0, 3000)");
+    await sleep(400);
+    const gone = JSON.parse(await evaluate(browser, sessionId, BUTTON_STATE));
+    if (gone.present) {
+      failures.push("the button stayed pinned to a screen edge after the text scrolled away");
+    } else {
+      console.log("PASS  : the button hides once the text scrolls out of the viewport");
+    }
+
+    await evaluate(browser, sessionId, "window.scrollTo(0, 0)");
+    await sleep(250);
+  }
+
+  // --- 8. The user's selection was not destroyed ----------------------------
   await evaluate(browser, sessionId, `getSelection().removeAllRanges()`);
   await sleep(250);
   await evaluate(browser, sessionId, SELECT_SNIPPET("middle"));
@@ -507,21 +680,17 @@ async function main() {
   // --- 8. The setting takes effect without a page refresh --------------------
   failures.push(...(await checkSettingToggle(browser, sessionId, (m) => console.log(m))));
 
-  // --- 9. Nothing injected before any selection ---------------------------
+  // --- 9. The UI dies with the extension, even without a page reload -------
+  // LAST, because it reloads the extension and would disturb later checks.
+  failures.push(...(await checkTearsDownOnExtensionReload(browser, sessionId, (m) => console.log(m))));
+
+  // --- 10. Nothing injected before any selection --------------------------
   // Covered implicitly: the host only exists after the first selection above.
   console.log("\nobserved states:");
   for (const [label, s] of results) {
     console.log(
       `  ${label}: ${s.present ? `button@${Math.round(s.left)},${Math.round(s.top)} ${Math.round(s.width)}x${Math.round(s.height)}` : "no button"}`,
     );
-    if (s.hasRoot) {
-      console.log(`      shadow children: ${JSON.stringify(s.shadowChildTags)}`);
-      console.log(`      <style> count=${s.styleCount} hasEsRootRule=${s.hasEsRootRule}`);
-      console.log(`      first style text: ${JSON.stringify(s.styleText?.[0]?.slice(0, 100))}`);
-      console.log(`      host style attr: ${JSON.stringify(s.hostStyleAttr)}`);
-      console.log(`      container: position=${s.rootPosition} left=${s.rootLeft} top=${s.rootTop}`);
-    }
-    break; // one diagnostic is enough
   }
 
   if (consoleErrors.length > 0) {

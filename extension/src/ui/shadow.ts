@@ -230,16 +230,37 @@ export function isFocusWithin(root: Node): boolean {
 // Dismissal
 // ---------------------------------------------------------------------------
 
+/** How far the anchor must travel before it counts as gone. */
+const SCROLL_SLACK = 120;
+
+export interface DismissalOptions {
+  /**
+   * When to dismiss because the page scrolled.
+   *
+   * - `"far"` (default): only once the anchor has left the viewport by more than
+   *   `SCROLL_SLACK`. Correct for UI that tracks its anchor.
+   * - `"any"`: on the first scroll event.
+   *
+   * `"any"` is what the micro-button wants. The button is `position: fixed`, so
+   * scrolling does not move it: a small scroll would leave it stranded mid-screen
+   * pointing at unrelated words. Re-anchoring on every scroll frame is wasted
+   * work, and Grammarly's bubble behaves the same way, disappearing as soon as
+   * you scroll.
+   */
+  readonly onScroll?: "far" | "any" | "never";
+}
+
 /**
- * Call `onDismiss` on Esc, on a click outside, or when the anchor has scrolled
- * far away from the viewport (spec 4.1). Returns a disposer.
+ * Call `onDismiss` on Esc, on a click outside, or on scroll.
+ * Returns a disposer.
  */
 export function watchForDismissal(
   shadow: ShadowRoot,
   anchorRect: () => DOMRect | null,
   onDismiss: () => void,
+  options: DismissalOptions = {},
 ): () => void {
-  const SCROLL_SLACK = 120;
+  const scrollMode = options.onScroll ?? "far";
 
   const onKeydown = (event: KeyboardEvent): void => {
     if (event.key === "Escape") {
@@ -255,6 +276,12 @@ export function watchForDismissal(
   };
 
   const onScroll = (): void => {
+    if (scrollMode === "never") return;
+    if (scrollMode === "any") {
+      onDismiss();
+      return;
+    }
+
     const rect = anchorRect();
     if (!rect) {
       onDismiss();
@@ -284,29 +311,59 @@ export function watchForDismissal(
 export interface Placement {
   readonly left: number;
   readonly top: number;
+  /**
+   * Which side of the selection the box ended up on.
+   *
+   * Callers need this: a tooltip must open *away* from the selection. With the
+   * button above the text, a tooltip hanging below it would cover the very text
+   * the user selected.
+   */
+  readonly placement: "above" | "below";
 }
+
+/**
+ * Horizontal alignment relative to the selection.
+ *
+ * - `"center"`: centred over the selection (the default).
+ * - `"right"`: the box's RIGHT edge sits on the selection's right edge, so the UI
+ *   reads as an anchor at the end of the words instead of hovering over the
+ *   middle of them.
+ */
+export type Align = "center" | "right";
 
 /**
  * Place a box next to a selection rect, clamped inside the viewport with an 8 px
  * margin (spec 4.1: "kept inside the viewport").
+ *
+ * Prefers ABOVE the selection. That is the convention every read-aloud and
+ * writing tool follows (Medium, Grammarly, Notion), and it is the right choice
+ * here for two reasons: a mouse selection leaves the text caret *below* the
+ * selection, so UI placed there fights what the user is doing; and above never
+ * covers the text they are about to read next.
+ *
+ * Flips below only when there is genuinely no room above.
  */
 export function placeNear(
   anchor: DOMRect,
   box: { width: number; height: number },
   margin = 8,
+  align: Align = "center",
 ): Placement {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  // Prefer above the selection; flip below when there is no room.
-  let top = anchor.top - box.height - 8;
-  if (top < margin) top = anchor.bottom + 8;
+  const above = anchor.top - box.height - 8;
+  const placement: "above" | "below" = above < margin ? "below" : "above";
+  let top = placement === "above" ? above : anchor.bottom + 8;
   top = Math.min(Math.max(margin, top), Math.max(margin, vh - box.height - margin));
 
-  let left = anchor.left + anchor.width / 2 - box.width / 2;
-  left = Math.min(Math.max(margin, left), Math.max(margin, vw - box.width - margin));
+  const unclamped =
+    align === "right"
+      ? anchor.right - box.width
+      : anchor.left + anchor.width / 2 - box.width / 2;
+  const left = Math.min(Math.max(margin, unclamped), Math.max(margin, vw - box.width - margin));
 
-  return { left: Math.round(left), top: Math.round(top) };
+  return { left: Math.round(left), top: Math.round(top), placement };
 }
 
 /**
