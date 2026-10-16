@@ -101,6 +101,7 @@ function startFixtureServer() {
 <p class="corner" id="bottom-right">Bottom right corner selection text</p>
 <p><label for="pw">Password: </label><input id="pw" type="password" value="hunter2"></p>
 <p id="divider">||| *** ---</p>
+<p id="oversized">OVERSIZED_SENTENCE_ONE The committee met on Tuesday to review the quarterly figures and to discuss the revised budget that had been circulated beforehand. OVERSIZED_TAIL This trailing sentence must never reach the side panel because it pushes the whole selection well past the three hundred character limit defined in the specification.</p>
 <p id="far">Far away selection text down the page</p>
 </body></html>`;
 
@@ -271,6 +272,116 @@ async function checkSettingToggle(cdp, sessionId, log) {
     failures.push("button did not come back after the setting was switched on");
   } else {
     log("PASS  : switching the setting on restores the button without a page refresh");
+  }
+
+  return failures;
+}
+
+/**
+ * Assert the ~300-character rule end to end (spec 4.1).
+ *
+ * Spec: "Ignores selections longer than ~300 characters (instead show the button,
+ * and the pop-up offers to practise only the first sentence)."
+ *
+ * Two separate requirements, so two assertions:
+ *   1. the button STILL appears for a long selection -- "ignores" must not mean
+ *      "refuses to show anything", or long text becomes unselectable;
+ *   2. clicking it hands the FIRST SENTENCE to the side panel, flagged truncated,
+ *      and nothing from the second sentence leaks through.
+ *
+ * Regression: `toPracticeTarget` and `isOversized` were fully unit-tested but
+ * called by nothing, because `targetFromSelection` rebuilt the payload inline and
+ * skipped the length check. A 5,000-character selection reached the side panel
+ * whole. Unit tests could not catch this -- only driving the real button can.
+ *
+ * Returns a list of failure strings.
+ */
+async function checkOversizedSelection(cdp, sessionId, log) {
+  const failures = [];
+  const ROOT_KEY = "es.store";
+
+  const extContext = findExtensionContext();
+  if (extContext === undefined) {
+    failures.push("could not find the extension's isolated world to read the stored target from");
+    return failures;
+  }
+
+  await evaluate(cdp, sessionId, `getSelection().removeAllRanges()`).catch(() => null);
+  await sleep(250);
+  await evaluate(cdp, sessionId, SELECT_SNIPPET("oversized"));
+  await sleep(600);
+
+  // 1. The button must still be offered.
+  const state = JSON.parse(await evaluate(cdp, sessionId, BUTTON_STATE));
+  if (!state.present || !state.hasButton) {
+    failures.push("no button for a selection longer than 300 characters; long text became unselectable");
+    return failures;
+  }
+
+  const selectedLength = await evaluate(cdp, sessionId, `getSelection().toString().trim().length`);
+  if (Number(selectedLength) <= 300) {
+    failures.push(`fixture problem: the oversized selection is only ${selectedLength} chars`);
+    return failures;
+  }
+  log(`PASS  : the button still appears for a ${selectedLength}-character selection`);
+
+  // 2. Click it and inspect what was actually handed off.
+  await evaluate(
+    cdp,
+    sessionId,
+    `(() => {
+      const host = document.querySelector('${HOST_TAG}');
+      const btn = host && host.shadowRoot && host.shadowRoot.querySelector('.es-button');
+      if (!btn) return 'no button';
+      btn.click();
+      return 'clicked';
+    })()`,
+  );
+  await sleep(700);
+
+  const raw = await evaluate(
+    cdp,
+    sessionId,
+    `(async () => {
+       const bag = await chrome.storage.local.get(${JSON.stringify(ROOT_KEY)});
+       const store = bag[${JSON.stringify(ROOT_KEY)}] ?? {};
+       return JSON.stringify(store.session?.target ?? null);
+     })()`,
+    extContext,
+  ).catch((e) => `error: ${e.message}`);
+
+  let target;
+  try {
+    target = JSON.parse(raw);
+  } catch {
+    failures.push(`could not read the stored practice target: ${raw}`);
+    return failures;
+  }
+
+  if (!target) {
+    failures.push("clicking the button stored no practice target at all");
+    return failures;
+  }
+
+  if (!target.truncated) {
+    failures.push(
+      `a ${selectedLength}-character selection was handed over untruncated ` +
+        `(${target.text.length} chars); spec 4.1 requires the first sentence only`,
+    );
+  } else {
+    log(`PASS  : the hand-off is flagged truncated (${target.text.length} chars)`);
+  }
+
+  if (target.text.includes("OVERSIZED_TAIL")) {
+    failures.push("text from the SECOND sentence leaked into the practice target");
+  } else {
+    log("PASS  : only the first sentence reached the side panel");
+  }
+
+  if (!target.text.includes("OVERSIZED_SENTENCE_ONE")) {
+    failures.push(`the first sentence is missing from the practice target: ${JSON.stringify(target.text)}`);
+  } else {
+    log(`PASS  : the first sentence is the one practised (${JSON.stringify(target.text.slice(0, 48))}...)`);
   }
 
   return failures;
@@ -677,14 +788,17 @@ async function main() {
     console.log("PASS  : the user's selection is preserved");
   }
 
-  // --- 8. The setting takes effect without a page refresh --------------------
+  // --- 8. Long selections practise the first sentence only ------------------
+  failures.push(...(await checkOversizedSelection(browser, sessionId, (m) => console.log(m))));
+
+  // --- 9. The setting takes effect without a page refresh --------------------
   failures.push(...(await checkSettingToggle(browser, sessionId, (m) => console.log(m))));
 
-  // --- 9. The UI dies with the extension, even without a page reload -------
+  // --- 10. The UI dies with the extension, even without a page reload -------
   // LAST, because it reloads the extension and would disturb later checks.
   failures.push(...(await checkTearsDownOnExtensionReload(browser, sessionId, (m) => console.log(m))));
 
-  // --- 10. Nothing injected before any selection --------------------------
+  // --- 11. Nothing injected before any selection --------------------------
   // Covered implicitly: the host only exists after the first selection above.
   console.log("\nobserved states:");
   for (const [label, s] of results) {
@@ -707,7 +821,7 @@ async function main() {
     for (const f of failures) console.error(`  - ${f}`);
     process.exit(1);
   }
-  console.log("\nPASS: selection capture, guards, positioning, dismissal and selection preservation all work.");
+  console.log("\nPASS: selection capture, guards, positioning, dismissal, the 300-char limit and selection preservation all work.");
 }
 
 main().catch((err) => {

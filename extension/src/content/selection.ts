@@ -16,7 +16,7 @@
  * Spec 9: never log the selected text.
  */
 
-import { normalizeText, isSpeakableText } from "./normalize";
+import { normalizeText, isSpeakableText, toPracticeTarget } from "./normalize";
 import {
   activeElementIsPassword,
   eventComesFromUs,
@@ -72,19 +72,22 @@ export interface WatcherController {
   dismiss(): void;
 }
 
-/** Build a target for the side panel from a selection. */
+/**
+ * Build a target for the side panel from a selection.
+ *
+ * Delegates to `toPracticeTarget` rather than assembling the object here. This
+ * function used to do it inline, which meant the ~300-character rule (spec 4.1)
+ * was never applied on the real path: `toPracticeTarget` and `isOversized` were
+ * covered by tests but called by nothing, so a 5,000-character selection was
+ * handed to the side panel whole and unflagged. One builder, one place where the
+ * limit can be enforced.
+ */
 export function targetFromSelection(
   selection: ResolvedSelection,
   accent: PracticeTarget["accent"],
-  speed: number
+  speed: number,
 ): PracticeTarget {
-  const text = selection.text;
-  return {
-    text,
-    kind: text.includes(" ") ? "sentence" : "word",
-    accent,
-    speed,
-  };
+  return toPracticeTarget(selection.text, { accent, speed });
 }
 
 /**
