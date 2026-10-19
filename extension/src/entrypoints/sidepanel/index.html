@@ -7,14 +7,9 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <!--
-      Phase 1 ships the accessible tab shell only. The three tab bodies arrive in
-      later phases, so each is a labelled landmark with an explicit empty state
-      rather than a blank panel.
-    -->
     <div class="panel" id="panel">
       <header class="panel-header">
-        <h1 class="panel-title" id="app-title">English Shadowing</h1>
+        <h1 class="panel-title" id="app-title" data-i18n="extName">English Shadowing</h1>
       </header>
 
       <div class="tabs" role="tablist" aria-labelledby="app-title" id="tablist">
@@ -27,6 +22,7 @@
           aria-selected="true"
           tabindex="0"
           data-tab="practise"
+          data-i18n="tabPractise"
         >
           Practise
         </button>
@@ -39,6 +35,7 @@
           aria-selected="false"
           tabindex="-1"
           data-tab="saved"
+          data-i18n="tabSaved"
         >
           Saved
         </button>
@@ -51,6 +48,7 @@
           aria-selected="false"
           tabindex="-1"
           data-tab="settings"
+          data-i18n="tabSettings"
         >
           Settings
         </button>
@@ -63,10 +61,7 @@
           role="tabpanel"
           aria-labelledby="tab-practise"
           tabindex="0"
-          hidden
-        >
-          <p class="empty-state">Select text on a page to start practising.</p>
-        </section>
+        ></section>
 
         <section
           class="tab-panel"
@@ -75,9 +70,7 @@
           aria-labelledby="tab-saved"
           tabindex="0"
           hidden
-        >
-          <p class="empty-state">No saved items yet.</p>
-        </section>
+        ></section>
 
         <section
           class="tab-panel"
@@ -86,9 +79,7 @@
           aria-labelledby="tab-settings"
           tabindex="0"
           hidden
-        >
-          <p class="empty-state">Settings arrive with the settings phase.</p>
-        </section>
+        ></section>
       </main>
     </div>
 

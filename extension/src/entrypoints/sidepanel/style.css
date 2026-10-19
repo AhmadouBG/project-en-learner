@@ -3,37 +3,52 @@
  *
  * The visual language is carried over from the previous panel
  * (legacy-panel-reference.css): green accent #4caf50, dark green #056b16, the
- * 135-degree header gradient, #e1e8ed borders, 6-8 px radii. Everything is
- * declared with custom properties so Phase 11 can drive light/dark/system
- * without touching component rules.
+ * 135-degree header gradient, #e1e8ed borders, 6-8 px radii.
+ *
+ * Theme is driven by `data-theme` on <html>: `system` follows the OS, while
+ * `light`/`dark` are explicit choices from Settings (spec 4.3).
  */
 
 :root {
-  /* Brand, from the existing panel */
   --es-green: #4caf50;
   --es-green-dark: #056b16;
   --es-green-wash: #e8f5e9;
   --es-green-ink: #056b16;
 
-  /* Neutrals, from the existing panel */
   --es-border: #e1e8ed;
   --es-surface: #ffffff;
   --es-surface-2: #f8f9fa;
   --es-ink: #202124;
   --es-ink-2: #5f6368;
   --es-ink-3: #999999;
-  --es-danger: #dc3545;
+  --es-danger: #b3261e;
+  --es-danger-wash: #fdecea;
   --es-focus: #0b57d0;
 
   --es-radius: 8px;
   --es-radius-sm: 6px;
   --es-gap: 12px;
 
-  color-scheme: light dark;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --es-border: #3c4043;
+  --es-surface: #202124;
+  --es-surface-2: #292a2d;
+  --es-ink: #e8eaed;
+  --es-ink-2: #bdc1c6;
+  --es-ink-3: #80868b;
+  --es-green-wash: #1e2b20;
+  --es-green-ink: #a5d6a7;
+  --es-danger: #f2b8b5;
+  --es-danger-wash: #3b1f1d;
+  --es-focus: #8ab4f8;
+  color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  html[data-theme="system"] {
     --es-border: #3c4043;
     --es-surface: #202124;
     --es-surface-2: #292a2d;
@@ -41,7 +56,11 @@
     --es-ink-2: #bdc1c6;
     --es-ink-3: #80868b;
     --es-green-wash: #1e2b20;
+    --es-green-ink: #a5d6a7;
+    --es-danger: #f2b8b5;
+    --es-danger-wash: #3b1f1d;
     --es-focus: #8ab4f8;
+    color-scheme: dark;
   }
 }
 
@@ -120,12 +139,196 @@ body {
 
 .panel-body {
   flex: 1;
-  padding: 16px;
+  padding: 14px;
   overflow-y: auto;
+}
+
+.tab-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.tab-panel[hidden] {
+  display: none;
 }
 
 .tab-panel:focus-visible {
   outline: none;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Shared controls                                                           */
+/* ------------------------------------------------------------------------- */
+
+.card {
+  border: 1px solid var(--es-border);
+  border-radius: var(--es-radius);
+  background: var(--es-surface);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--es-ink-2);
+}
+
+.field {
+  display: grid;
+  gap: 5px;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--es-ink-2);
+}
+
+.text-input,
+.field select,
+.search {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  background: var(--es-surface-2);
+  border: 1px solid var(--es-border);
+  border-radius: var(--es-radius-sm);
+  padding: 8px 9px;
+}
+
+.text-input {
+  resize: vertical;
+  min-height: 78px;
+  line-height: 1.5;
+}
+
+.button,
+.link-button {
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+  background: var(--es-surface-2);
+  border: 1px solid var(--es-border);
+  border-radius: var(--es-radius-sm);
+  padding: 7px 11px;
+}
+
+.button:hover,
+.link-button:hover {
+  border-color: var(--es-green);
+}
+
+.button.primary {
+  background: var(--es-green);
+  border-color: var(--es-green);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.button.primary:hover {
+  background: var(--es-green-dark);
+  border-color: var(--es-green-dark);
+}
+
+.button.danger {
+  color: var(--es-danger);
+  border-color: var(--es-danger);
+  background: transparent;
+}
+
+.button.small {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.button.wide {
+  width: 100%;
+}
+
+.button.link {
+  display: inline-block;
+  text-decoration: none;
+  color: var(--es-green-ink);
+}
+
+.link-button {
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+  color: var(--es-green-ink);
+  text-decoration: underline;
+}
+
+.button-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.button-row.wrap {
+  flex-wrap: wrap;
+}
+
+.button:disabled,
+.link-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--es-border);
+  border-radius: var(--es-radius-sm);
+  overflow: hidden;
+  justify-self: start;
+}
+
+.segment {
+  font: inherit;
+  border: none;
+  background: transparent;
+  color: var(--es-ink-2);
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.segment[aria-pressed="true"] {
+  background: var(--es-green-wash);
+  color: var(--es-green-ink);
+  font-weight: 700;
+}
+
+.hint,
+.status {
+  margin: 0;
+  color: var(--es-ink-3);
+  font-size: 12px;
+}
+
+.status {
+  min-height: 1.2em;
+}
+
+.hint.warn {
+  color: var(--es-ink-2);
 }
 
 .empty-state {
@@ -133,6 +336,290 @@ body {
   font-size: 13px;
   padding: 16px;
   text-align: center;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Practise: IPA                                                              */
+/* ------------------------------------------------------------------------- */
+
+.ipa-body {
+  min-height: 24px;
+}
+
+.ipa-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  line-height: 1.4;
+}
+
+.ipa-word {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 5px;
+  border-radius: 5px;
+}
+
+.ipa-word.is-speaking {
+  background: var(--es-green-wash);
+}
+
+.ipa-word-text {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.ipa-word-ipa {
+  font-size: 12px;
+  color: var(--es-ink-2);
+  white-space: nowrap;
+}
+
+.ipa-word-ipa .stress {
+  color: var(--es-green-ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 3px;
+  border: 1px solid var(--es-border);
+  border-radius: 3px;
+  padding: 0 3px;
+  font-size: 9px;
+  vertical-align: 1px;
+  color: var(--es-ink-2);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Practise: recording                                                       */
+/* ------------------------------------------------------------------------- */
+
+.level-meter {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--es-surface-2);
+  border: 1px solid var(--es-border);
+  overflow: hidden;
+}
+
+.level-meter span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--es-green);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.08s linear;
+}
+
+.waveform {
+  width: 100%;
+  height: 64px;
+  display: block;
+  border-radius: var(--es-radius-sm);
+  background: var(--es-surface-2);
+  border: 1px solid var(--es-border);
+}
+
+.youglish-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Practise: result                                                          */
+/* ------------------------------------------------------------------------- */
+
+.result-body {
+  display: grid;
+  gap: 8px;
+}
+
+.result-count {
+  margin: 0;
+  font-weight: 700;
+}
+
+.result-words {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  line-height: 2;
+}
+
+.result-word {
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+}
+
+.result-word.matched {
+  background: var(--es-green-wash);
+  color: var(--es-green-ink);
+}
+
+.result-word.missing {
+  background: var(--es-danger-wash);
+  color: var(--es-danger);
+  text-decoration: line-through;
+}
+
+.result-word.substituted {
+  background: var(--es-danger-wash);
+  color: var(--es-danger);
+  border-style: dashed;
+  border-color: var(--es-danger);
+}
+
+.result-word.extra {
+  color: var(--es-ink-3);
+  border-color: var(--es-border);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Saved                                                                     */
+/* ------------------------------------------------------------------------- */
+
+.saved,
+.settings {
+  display: grid;
+  gap: 12px;
+}
+
+.saved-list {
+  display: grid;
+  gap: 8px;
+}
+
+.saved-card,
+.review-card {
+  border: 1px solid var(--es-border);
+  border-radius: var(--es-radius);
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.saved-text,
+.review-text {
+  margin: 0;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.review-text {
+  font-size: 18px;
+}
+
+.saved-ipa {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, sans-serif;
+  color: var(--es-green-ink);
+}
+
+.saved-pos {
+  margin: 0;
+  font-style: italic;
+  color: var(--es-ink-2);
+}
+
+.saved-defs {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Settings                                                                  */
+/* ------------------------------------------------------------------------- */
+
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.check-row input {
+  margin-top: 3px;
+  accent-color: var(--es-green);
+}
+
+kbd {
+  border: 1px solid var(--es-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Toast + onboarding                                                        */
+/* ------------------------------------------------------------------------- */
+
+.toast {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 20;
+  background: var(--es-ink);
+  color: var(--es-surface);
+  border-radius: var(--es-radius);
+  padding: 9px 12px;
+  font-size: 13px;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.onboarding {
+  max-width: calc(100vw - 24px);
+  border: 1px solid var(--es-border);
+  border-radius: 12px;
+  padding: 18px;
+  background: var(--es-surface);
+  color: var(--es-ink);
+}
+
+.onboarding::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.onboarding-body {
+  display: grid;
+  gap: 10px;
+}
+
+.onboarding-title {
+  margin: 0;
+  font-size: 18px;
+}
+
+.onboarding-text {
+  margin: 0;
+  color: var(--es-ink-2);
+}
+
+.onboarding .button-row {
+  justify-content: space-between;
+  margin-top: 6px;
 }
 
 /* Visible focus rings everywhere (spec 3) */

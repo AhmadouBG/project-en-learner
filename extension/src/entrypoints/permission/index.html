@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>English Shadowing — Microphone</title>
+    <style>
+      :root {
+        --es-green: #4caf50;
+        --es-green-dark: #056b16;
+        --es-border: #e1e8ed;
+        --es-ink: #202124;
+        --es-ink-2: #5f6368;
+        --es-surface: #ffffff;
+        --es-focus: #0b57d0;
+        color-scheme: light dark;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --es-border: #3c4043;
+          --es-ink: #e8eaed;
+          --es-ink-2: #bdc1c6;
+          --es-surface: #202124;
+          --es-focus: #8ab4f8;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--es-surface);
+        color: var(--es-ink);
+        font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      main {
+        width: min(460px, 100%);
+        border: 1px solid var(--es-border);
+        border-radius: 12px;
+        padding: 24px;
+      }
+      h1 { margin: 0 0 12px; font-size: 20px; }
+      p { margin: 0 0 16px; color: var(--es-ink-2); }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+      button {
+        font: inherit;
+        padding: 8px 14px;
+        border-radius: 7px;
+        border: 1px solid var(--es-border);
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+      }
+      .primary {
+        border: none;
+        background: var(--es-green);
+        color: #fff;
+        font-weight: 600;
+      }
+      .primary:hover { background: var(--es-green-dark); }
+      button:focus-visible { outline: 2px solid var(--es-focus); outline-offset: 2px; }
+      #permission-status { min-height: 1.5em; margin-top: 16px; font-weight: 600; }
+      .ok { color: var(--es-green-dark); }
+      .error { color: #b3261e; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="permission-title" data-i18n="permissionTitle">Microphone access</h1>
+      <p id="permission-body" data-i18n="permissionBody">
+        English Shadowing needs microphone access to record your take. Audio stays on this device.
+      </p>
+      <p id="permission-hint" data-i18n="permissionHint">
+        If the prompt was blocked, allow the microphone in the site settings, then try again.
+      </p>
+      <div class="row">
+        <button class="primary" id="permission-allow" type="button" data-i18n="permissionAllow">
+          Allow microphone
+        </button>
+        <button id="permission-return" type="button" data-i18n="permissionReturn">
+          Return to the side panel
+        </button>
+      </div>
+      <p id="permission-status" role="status" aria-live="polite"></p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -41,6 +41,7 @@
   "btnAgain": { "message": "À revoir" },
   "btnGood": { "message": "Bien" },
   "btnNext": { "message": "Suivant" },
+  "btnBack": { "message": "Retour" },
   "btnSkip": { "message": "Passer" },
   "btnDone": { "message": "Terminé" },
   "btnAllowMic": { "message": "Autoriser le micro" },
