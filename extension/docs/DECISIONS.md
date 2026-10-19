@@ -629,10 +629,10 @@ Environment: Windows 11, Chrome/155.0.8059.80, Node v24.15.0. Measured
 | Low-end laptop | not testable here | Rely on the measurements below. |
 
 Other real-browser checks: `check-phase6.mjs` (panel), `check-recording.mjs`
-(fake-microphone take, auto-save, reload persistence, search, review box,
-import/export, shadow cancel), `check-shortcut.mjs` (Alt+Shift+S + translated
-labels), `check-selection.mjs`, `check-shadow-mount.mjs`, `check-ipa.mjs`,
-`check-dict-runtime.mjs`.
+(fake-microphone take, A/B playback, auto-save, reload persistence, search,
+review box, import/export, a full 3-round loop and cancel), `check-shortcut.mjs`
+(Alt+Shift+S + translated labels), `check-selection.mjs`,
+`check-shadow-mount.mjs`, `check-ipa.mjs`, `check-dict-runtime.mjs`.
 
 **Still manual (cannot be proven headlessly).**
 

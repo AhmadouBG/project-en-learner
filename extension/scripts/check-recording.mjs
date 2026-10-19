@@ -298,6 +298,51 @@ async function main() {
     console.log(`PASS  : take completed; result block = ${JSON.stringify(takeReady.slice(0, 120))}`);
   }
 
+  // A/B compare: enabled with the take, plays (reference, then take) and puts
+  // the control back. Auto-stop on silence and the 30 s cap are unit-tested in
+  // tests/recorder.test.ts with a controlled analyser; fake media cannot be
+  // made quiet on demand here.
+  const abReady = await evaluate(
+    browser,
+    sessionId,
+    `(() => {
+       const ab = [...document.querySelectorAll('#panel-practise button')]
+         .find((b) => b.textContent.includes('A/B compare'));
+       return ab ? !ab.disabled : false;
+     })()`,
+  );
+  if (!abReady) {
+    failures.push("A/B compare was not enabled after a take");
+  } else {
+    await evaluate(
+      browser,
+      sessionId,
+      `(() => {
+         const ab = [...document.querySelectorAll('#panel-practise button')]
+           .find((b) => b.textContent.includes('A/B compare'));
+         ab.click();
+         return true;
+       })()`,
+    );
+    const abStarted = await waitFor(
+      browser,
+      sessionId,
+      `[...document.querySelectorAll('#panel-practise button')]
+         .some((b) => b.textContent.trim() === 'Stop')`,
+      { attempts: 20, interval: 200 },
+    );
+    const abRestored = await waitFor(
+      browser,
+      sessionId,
+      `[...document.querySelectorAll('#panel-practise button')]
+         .some((b) => b.textContent.includes('A/B compare') && !b.disabled)`,
+      { attempts: 80, interval: 250 },
+    );
+    if (!abStarted) failures.push("A/B compare did not start playing");
+    else if (!abRestored) failures.push("A/B compare did not restore the control");
+    else console.log("PASS  : A/B compare plays both takes and restores the control");
+  }
+
   // Auto-save is on by default, so "hello" should have been stored.
   const stored = await waitFor(
     browser,
@@ -540,6 +585,43 @@ async function main() {
   if (!cancelled) failures.push("shadow loop did not cancel cleanly");
   else console.log("PASS  : shadow loop cancels and re-enables Start");
 
+  // --- Phase 9: a full 3-round loop reaches "done". -------------------------
+  // Each take runs until the recorder auto-stops (silence, or the 30 s cap), so
+  // this is the slowest check in the suite. Headless has no TTS voices, which
+  // makes the reference playback fail fast and exercises that path too.
+  await evaluate(
+    browser,
+    sessionId,
+    `(() => {
+       const rounds = document.getElementById('shadow-rounds');
+       rounds.value = '3';
+       rounds.dispatchEvent(new Event('change', { bubbles: true }));
+       const start = [...document.querySelectorAll('#panel-practise button')]
+         .find((b) => b.textContent.includes('Start shadowing'));
+       start.click();
+       return true;
+     })()`,
+  );
+  const finished = await waitFor(
+    browser,
+    sessionId,
+    `(() => {
+       const status = [...document.querySelectorAll('#panel-practise .status')]
+         .map((n) => n.textContent.trim())
+         .find((text) => text.includes('Shadowing complete'));
+       const cancel = [...document.querySelectorAll('#panel-practise button')]
+         .find((b) => b.textContent.includes('Cancel shadowing'));
+       const start = [...document.querySelectorAll('#panel-practise button')]
+         .find((b) => b.textContent.includes('Start shadowing'));
+       return status !== undefined && cancel?.hidden === true && start && !start.disabled
+         ? status
+         : false;
+     })()`,
+    { attempts: 400, interval: 500 },
+  );
+  if (!finished) failures.push("3-round shadow loop did not reach the done state");
+  else console.log(`PASS  : 3-round shadow loop completed (${finished})`);
+
   if (consoleErrors.length > 0) {
     failures.push(`console errors: ${consoleErrors.join(" | ")}`);
   } else {
@@ -554,7 +636,7 @@ async function main() {
     for (const f of failures) console.error(`  - ${f}`);
     process.exit(1);
   }
-  console.log("\nPASS: recording, auto-save, saved/review/import and shadow cancel verified.");
+  console.log("\nPASS: recording, playback/A-B, auto-save, saved/review/import, 3-round loop and cancel verified.");
 }
 
 main().catch((err) => {
