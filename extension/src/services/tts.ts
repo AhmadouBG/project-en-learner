@@ -330,7 +330,6 @@ export class Speaker {
 
     const accent: Accent = options.accent;
     const rate = clampRate(options.rate ?? 1);
-    const voice = chooseVoice(this.getVoices(), accent, options.voiceName ?? null);
     const chunks = splitIntoChunks(trimmed);
     const session = ++this.token;
     this.speaking = true;
@@ -338,6 +337,8 @@ export class Speaker {
     return new Promise<void>((resolve) => {
       let index = 0;
       let settled = false;
+      /** Chosen once voices are available; `null` lets the browser default apply. */
+      let voice: VoiceLike | null = null;
 
       const finish = (): void => {
         if (settled) return;
@@ -452,8 +453,54 @@ export class Speaker {
         }
       };
 
-      options.onStart?.();
-      next();
+      const start = (): void => {
+        const voices = this.getVoices();
+        if (voices.length > 0) {
+          voice = chooseVoice(voices, accent, options.voiceName ?? null);
+          options.onStart?.();
+          next();
+          return;
+        }
+
+        // Chrome loads the voice list asynchronously, so an empty list right
+        // after startup is normal. Wait for it, but never hang: if no voice is
+        // installed at all, `speechSynthesis.speak` plays nothing and fires no
+        // event, which used to leave the user with silent UI. Report it instead.
+        let resolved = false;
+        let unsubscribe: () => void = () => undefined;
+        const settle = (): void => {
+          if (resolved) return;
+          resolved = true;
+          unsubscribe();
+          this.clearTimer(pollTimer);
+          this.timers.delete(pollTimer);
+          this.clearTimer(giveUpTimer);
+          this.timers.delete(giveUpTimer);
+
+          if (session !== this.token) {
+            finish();
+            return;
+          }
+          const loaded = this.getVoices();
+          if (loaded.length === 0) {
+            options.onError?.("unsupported");
+            finish();
+            return;
+          }
+          voice = chooseVoice(loaded, accent, options.voiceName ?? null);
+          options.onStart?.();
+          next();
+        };
+
+        // Most browsers never fire `voiceschanged`; a short poll covers them.
+        const pollTimer = this.setTimer(settle, 150);
+        const giveUpTimer = this.setTimer(settle, VOICE_WAIT_MS);
+        this.timers.add(pollTimer);
+        this.timers.add(giveUpTimer);
+        unsubscribe = this.onVoicesChanged(() => settle());
+      };
+
+      start();
     });
   }
 
@@ -485,6 +532,12 @@ export class Speaker {
 
 /** Rates offered by the UI. Kept in one place so they cannot drift apart. */
 export const SPEEDS = [0.5, 0.75, 1, 1.25] as const;
+
+/**
+ * How long to wait for `speechSynthesis.getVoices()` to fill in before treating
+ * the browser as having no voices installed (spec 5.4, Phase 12).
+ */
+export const VOICE_WAIT_MS = 800;
 
 export function clampRate(rate: number): number {
   if (!Number.isFinite(rate)) return 1;

@@ -242,4 +242,40 @@ describe("Speaker", () => {
     expect(fake.spoken).toHaveLength(0);
     expect(onEnd).toHaveBeenCalledOnce();
   });
+
+  it("waits for voices that load asynchronously instead of giving up", async () => {
+    const fake = fakeSource([]);
+    const speaker = new Speaker({
+      source: fake.source,
+      setTimer: (fn) => setTimeout(fn, 0),
+      clearTimer: (handle) => clearTimeout(handle),
+    });
+
+    const playback = speaker.speak("hello", { accent: "en-US" });
+    // The voice list fills in after `speak` started, as Chrome does at startup.
+    fake.setVoices([usVoice]);
+
+    await playback;
+
+    expect(fake.spoken.length).toBeGreaterThan(0);
+    expect(fake.spoken[0]?.voice).toBe(usVoice);
+  });
+
+  it("reports unsupported when no voice is installed at all", async () => {
+    // Spec 5.4/Phase 12: `speechSynthesis.speak` with zero voices plays nothing
+    // and fires no event, which used to leave the user with a silent UI.
+    const fake = fakeSource([]);
+    const speaker = new Speaker({
+      source: fake.source,
+      setTimer: (fn) => setTimeout(fn, 0),
+      clearTimer: (handle) => clearTimeout(handle),
+    });
+    const onError = vi.fn();
+
+    await speaker.speak("hello", { accent: "en-US", onError });
+
+    expect(onError).toHaveBeenCalledWith("unsupported");
+    expect(fake.spoken).toHaveLength(0);
+    expect(speaker.isSpeaking).toBe(false);
+  });
 });
