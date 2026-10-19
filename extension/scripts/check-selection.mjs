@@ -325,8 +325,11 @@ async function checkOversizedSelection(cdp, sessionId, log) {
   }
   log(`PASS  : the button still appears for a ${selectedLength}-character selection`);
 
-  // 2. Click it and inspect what was actually handed off.
-  await evaluate(
+  // 2. Click the micro-button (which opens the quick-read pop-up), then
+  //    "Practise pronunciation", and inspect what was actually handed off.
+  //    This is the spec 2 flow: the micro-button alone no longer stores a
+  //    target, because the pop-up comes first.
+  const clicked = await evaluate(
     cdp,
     sessionId,
     `(() => {
@@ -337,7 +340,33 @@ async function checkOversizedSelection(cdp, sessionId, log) {
       return 'clicked';
     })()`,
   );
-  await sleep(700);
+  if (clicked !== "clicked") {
+    failures.push(`could not click the oversized selection's button (${clicked})`);
+    return failures;
+  }
+
+  let practiseReady = false;
+  for (let i = 0; i < 30 && !practiseReady; i += 1) {
+    await sleep(200);
+    practiseReady = await evaluate(
+      cdp,
+      sessionId,
+      `!!document.querySelector('es-quick-popup')?.shadowRoot?.querySelector('.es-primary')`,
+    ).catch(() => false);
+  }
+  if (!practiseReady) {
+    failures.push("quick-read pop-up did not open for the oversized selection");
+    return failures;
+  }
+  await evaluate(
+    cdp,
+    sessionId,
+    `(() => {
+       document.querySelector('es-quick-popup')?.shadowRoot?.querySelector('.es-primary')?.click();
+       return true;
+     })()`,
+  );
+  await sleep(900);
 
   const raw = await evaluate(
     cdp,

@@ -27,7 +27,8 @@
     "check:shadow": "node scripts/check-shadow-mount.mjs",
     "check:shortcut": "node scripts/check-shortcut.mjs",
     "check:recording": "node scripts/check-recording.mjs",
-    "check:permission": "node scripts/check-permission.mjs"
+    "check:permission": "node scripts/check-permission.mjs",
+    "check:hardening": "node scripts/check-hardening.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

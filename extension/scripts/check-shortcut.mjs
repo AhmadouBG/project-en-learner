@@ -195,28 +195,30 @@ async function main() {
     console.log("PASS  : probe page loaded");
   }
 
-  // Select the sentence the same way a drag would end.
-  await evaluate(
-    browser,
-    sessionId,
-    `(async () => {
-       const el = document.getElementById('middle');
-       const range = document.createRange();
-       range.selectNodeContents(el);
-       const sel = getSelection();
-       sel.removeAllRanges();
-       sel.addRange(range);
-       document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-       await new Promise((r) => setTimeout(r, 400));
-       return true;
-     })()`,
-  );
-
-  const buttonReady = await waitFor(
-    browser,
-    sessionId,
-    "!!document.querySelector('es-micro-button')",
-  );
+  // Select the sentence the same way a drag would end. Re-select a few times:
+  // injection happens at document_idle and the watcher only reacts to events
+  // after it is installed, so a single synthetic mouseup can land too early.
+  const selectSentence = `(async () => {
+     const el = document.getElementById('middle');
+     const range = document.createRange();
+     range.selectNodeContents(el);
+     const sel = getSelection();
+     sel.removeAllRanges();
+     sel.addRange(range);
+     document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+     await new Promise((r) => setTimeout(r, 300));
+     return true;
+   })()`;
+  let buttonReady = false;
+  for (let i = 0; i < 8 && !buttonReady; i += 1) {
+    await evaluate(browser, sessionId, selectSentence);
+    buttonReady = await waitFor(
+      browser,
+      sessionId,
+      "!!document.querySelector('es-micro-button')",
+      { attempts: 8, interval: 200 },
+    );
+  }
   if (!buttonReady) failures.push("micro-button never appeared for the selection");
   else {
     console.log("PASS  : selection produced the micro-button");
