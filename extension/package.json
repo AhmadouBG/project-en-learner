@@ -17,10 +17,17 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "postinstall": "wxt prepare",
-    "verify": "npm run lint && npm run compile && npm run test && npm run build && npm run check:ipa && npm run check:dict-runtime",
+    "verify": "npm run lint && npm run compile && npm run test && npm run build && npm run check:ipa && npm run check:dict-runtime && npm run check:panel && npm run check:shortcut",
     "build:dict": "node scripts/build-dict.mjs",
     "check:ipa": "node scripts/check-ipa.mjs",
-    "check:dict-runtime": "node scripts/check-dict-runtime.mjs"
+    "check:dict-runtime": "node scripts/check-dict-runtime.mjs",
+    "check:panel": "node scripts/check-phase6.mjs",
+    "check:selection": "node scripts/check-selection.mjs",
+    "check:frames": "node scripts/check-frames.mjs",
+    "check:shadow": "node scripts/check-shadow-mount.mjs",
+    "check:shortcut": "node scripts/check-shortcut.mjs",
+    "check:recording": "node scripts/check-recording.mjs",
+    "check:permission": "node scripts/check-permission.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
