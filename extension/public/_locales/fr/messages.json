@@ -273,7 +273,7 @@
   "shortcutLink": { "message": "Modifier le raccourci dans Chrome" },
   "privacyTitle": { "message": "Confidentialité" },
   "privacyBody": {
-    "message": "Vos sélections, éléments enregistrés et enregistrements restent sur cet appareil. Seul le mot sélectionné est envoyé à l'API de dictionnaire gratuite pour chercher son sens. La reconnaissance vocale de Chrome peut envoyer votre audio à Google lorsque la vérification des mots est active. YouGlish s'ouvre comme un site normal lorsque vous demandez des exemples natifs."
+    "message": "Vos sélections, éléments enregistrés et enregistrements restent sur cet appareil. Seul le mot sélectionné est envoyé à l'API de dictionnaire gratuite pour chercher son sens. La reconnaissance vocale de Chrome peut envoyer votre audio à Google lorsque la vérification des mots est active. YouGlish et le lien Traduire s'ouvrent comme des sites normaux uniquement lorsque vous cliquez dessus."
   },
   "creditsTitle": { "message": "Crédits" },
   "creditsBody": {

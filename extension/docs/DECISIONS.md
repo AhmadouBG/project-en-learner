@@ -538,3 +538,118 @@ verified; the UI is not.
   and IndexedDB in a service worker is awkward; the removed `indexedDB.js` is gone.
 - **Internationalisation runtime:** built on `chrome.i18n` message files only, with
   no i18n library, per spec §3.
+
+---
+
+## 16. Side panel is TypeScript modules, not HTML templating (Phase 6)
+
+**Chosen:** build the panel in TS under `src/sidepanel/` (`app`, `host`, `dom`,
+`practise`, `saved`, `settings`, `onboarding`), with a tiny local `el`/`field`
+DOM builder in `dom.ts`.
+
+**Rejected:** importing the content-script `ui/shadow.ts` helper, or shipping a
+framework.
+
+**Why.** The panel is an ordinary extension page, not injected UI, so it needs no
+shadow root; reusing `ui/shadow.ts` would pull the WXT content-script runtime into
+the panel bundle. `el`/`field` keep markup declarative and escape text by
+construction (no `innerHTML`, which ESLint forbids anyway).
+
+**Verification:** `scripts/check-phase6.mjs` drives the built extension in real
+Chrome. It asserts the practise controls exist, IPA for "hello" resolves
+(`həloʊ`), the YouGlish row is shown for a word and hidden for a long sentence,
+the accent toggle persists `en-GB`, dark mode computes `rgb(32, 33, 36)`, a
+stored practice target survives a reload (text + `1.25×` + UK), and the panel
+re-renders in French. All pass, no console errors. `check-phase1.mjs` still
+passes, so the panel rewrite kept the tab contract.
+
+## 17. Word check reports "words recognised", never a score (Phase 8)
+
+The result block colours target words green/red/grey and prints "Words
+recognised: x/y". It never says accuracy or pronunciation score, because
+`SpeechRecognition` returns *which words* it heard, not how well they were
+pronounced. Alignment is Levenshtein over normalised tokens with consistent
+contraction expansion (`src/services/diff.ts`), unit-tested for exact match, one
+substitution, one missing, one extra, punctuation/case, and contractions.
+
+## 18. A content script cannot read `_locales`; the background relays them (Phase 11 fix)
+
+**Found by** `scripts/check-shortcut.mjs`: the micro-button and quick-read pop-up
+rendered **raw message keys** (`btnListen`, `popupSentenceIpa`) for every user.
+The side panel and permission page were fine, which is why no earlier check
+caught it.
+
+**Cause.** `loadMessages()` fetches
+`chrome-extension://<id>/_locales/<lang>/messages.json`. A content script runs on
+the **page's** origin, so that fetch is cross-origin, is not in
+`web_accessible_resources`, and silently resolved to `{}`. `makeTranslator({})`
+then returns the key for every lookup.
+
+**Fix.** A new typed message, `i18n:messages` → `i18n:result`, answered by the
+background (an extension context, which can read the files). The content script
+keeps `chrome.i18n` as a fallback only if the background is unreachable.
+`tests/requests.test.ts` covers stale/wrong replies; `check-shortcut.mjs` now
+asserts the pop-up renders "Listen"/"IPA per word" and not keys.
+
+**Rejected:** exposing `_locales` via `web_accessible_resources` (extra surface,
+and message files need not be page-readable) and duplicating the strings into a
+`public/` copy (drift).
+
+## 19. Voices load asynchronously; none installed must be said out loud (Phase 12)
+
+**Found by** the hardening check: with `speechSynthesis.getVoices()` returning
+`[]`, `chooseVoice` returns `null` and `speechSynthesis.speak` plays nothing and
+fires **no event**. The old watchdog advanced chunks silently, so the user saw
+"Listen and get ready…" and heard nothing, with no explanation.
+
+**Fix.** `Speaker.speak` now waits for `voiceschanged` (with a ~150 ms poll and an
+`VOICE_WAIT_MS = 800` cap) before choosing a voice, so normally-async voices are
+not mistaken for "none". If the list is still empty, it reports
+`unsupported`, and the panel shows `errTtsUnavailable` ("Speech is not available
+in this browser. You can still read the IPA."). Two unit tests cover
+wait-then-speak and give-up.
+
+## 20. Phase 12 test matrix, store prep and measured sizes
+
+Environment: Windows 11, Chrome/155.0.8059.80, Node v24.15.0. Measured
+2026-10-19. Only Windows could be tested; macOS voice behaviour is unverified
+(spec §5.4 allows documenting this).
+
+| Matrix item | Result | Evidence |
+|---|---|---|
+| Wikipedia | **manual needed** | Automated selection is cleared by the site's own scripts (`getSelection()` empty, no host). The mechanism passes on GitHub/YouTube; a manual pass is still owed. |
+| GitHub | PASS | `check-hardening.mjs`: micro-button mounted on a loaded repo page. |
+| YouTube | PASS | `check-hardening.mjs`: micro-button mounted on a watch page. |
+| Google Docs | **manual needed** | Canvas-rendered editor with native selection disabled; needs a signed-in session. |
+| Iframe page | PASS | `scripts/check-frames.mjs`. |
+| Strict-CSP site | PASS | `check-hardening.mjs`: `default-src 'none'` page still mounts the button and pop-up. |
+| Offline mode | PASS | `check-hardening.mjs`: API host made unresolvable; pop-up shows `popupOffline`. |
+| Denied microphone | PASS | `scripts/check-permission.mjs`: recovery row + `permission.html`. |
+| No voices installed | PASS | `check-hardening.mjs` + tts unit tests (§19). |
+| Low-end laptop | not testable here | Rely on the measurements below. |
+
+Other real-browser checks: `check-phase6.mjs` (panel), `check-recording.mjs`
+(fake-microphone take, auto-save, reload persistence, search, review box,
+import/export, shadow cancel), `check-shortcut.mjs` (Alt+Shift+S + translated
+labels), `check-selection.mjs`, `check-shadow-mount.mjs`, `check-ipa.mjs`,
+`check-dict-runtime.mjs`.
+
+**Sizes (production `wxt build`, Chrome MV3).**
+
+| Artifact | Size |
+|---|---|
+| Content-script bundle `content-scripts/content.js` | **55.73 kB** |
+| Background service worker `background.js` | 14.65 kB |
+| Side-panel chunk / CSS | 49.62 kB / 7.90 kB |
+| Permission chunk | 0.95 kB |
+| CMUdict `dict.bin` + `dict.json` | 1.40 MB + 788.77 kB |
+| **Unpacked total** | **2.36 MB** |
+| **`wxt zip` package** | **1.10 MB** (1,098,280 bytes) |
+
+**Test suite:** 22 files / 370 tests, all passing. Lint and `tsc --noEmit`
+clean.
+
+**Store docs:** `PRIVACY.md`, `STORE_LISTING.md`, `LICENSES.md` live beside this
+file under `extension/docs/`. The repository root `docs/` belongs to the earlier
+Python prototype (its `LICENSES.md` is that project's inventory), so the
+extension's documents are kept with the extension.

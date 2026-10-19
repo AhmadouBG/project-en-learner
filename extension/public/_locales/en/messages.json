@@ -274,7 +274,7 @@
   "shortcutLink": { "message": "Change the shortcut in Chrome" },
   "privacyTitle": { "message": "Privacy" },
   "privacyBody": {
-    "message": "Your selections, saved items and recordings stay on this device. Only the selected word is sent to the free dictionary API to look up its meaning. Chrome's speech recognition may send your audio to Google when word checking is on. YouGlish opens as a normal website when you ask for native examples."
+    "message": "Your selections, saved items and recordings stay on this device. Only the selected word is sent to the free dictionary API to look up its meaning. Chrome's speech recognition may send your audio to Google when word checking is on. YouGlish and the Translate link open as normal websites only when you click them."
   },
   "creditsTitle": { "message": "Credits" },
   "creditsBody": {
