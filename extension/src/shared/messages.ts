@@ -77,6 +77,17 @@ export type ToBackground =
       readonly type: "dictionary:lookup";
       readonly word: string;
       readonly requestId: string;
+    }
+  | {
+      /**
+       * Pronunciation from the bundled CMUdict (spec 5.2).
+       *
+       * The dictionary is 2.09 MB, so it is answered by the background rather
+       * than loaded in every content script.
+       */
+      readonly type: "ipa:lookup";
+      readonly word: string;
+      readonly requestId: string;
     };
 
 // ---------------------------------------------------------------------------
@@ -85,19 +96,17 @@ export type ToBackground =
 
 export type FromBackground =
   | { readonly type: "dict:result"; readonly requestId: string; readonly result: DictionaryResult }
-  | { readonly type: "panel:opened"; readonly target: PracticeTarget }
+  | { readonly type: "ipa:result"; readonly requestId: string; readonly result: IpaResult }
+  | { readonly type: "panel:opened"; readonly ok: boolean }
+  | { readonly type: "panel:begin-practice"; readonly target: PracticeTarget }
+  | { readonly type: "panel:show-notice"; readonly messageKey: string }
   | { readonly type: "settings:changed" }
+  /** Background asks the page to open the quick-read pop-up for its selection. */
   | {
-      /**
-       * Pronunciation from the bundled CMUdict (spec 5.2).
-       *
-       * Aimed at the background, not the page: the dictionary is 2.09 MB and
-       * loading it in every content script would multiply that by the number of
-       * open tabs, for a feature that only needs answering once per selection.
-       */
-      readonly type: "ipa:lookup";
-      readonly word: string;
-      readonly requestId: string;
+      readonly type: "selection:request";
+      readonly fallbackText?: string;
+      /** `popup` for the shortcut; `practice` for a context-menu hand-off. */
+      readonly intent?: "popup" | "practice";
     };
 
 /** Reply to `ipa:lookup`. `ok: false` means "not in CMUdict", not an error. */

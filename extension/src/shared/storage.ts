@@ -131,6 +131,11 @@ export interface CachedDefinition {
 export interface SessionState {
   /** The practice target waiting to be picked up by the side panel. */
   readonly target: PracticeTarget | null;
+  /**
+   * A localisation key for a one-off message the panel should show, e.g. when
+   * the shortcut is pressed on a restricted page. Cleared once displayed.
+   */
+  readonly notice?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -182,7 +187,10 @@ export function migrate(input: unknown): StoreV1 {
     settings,
     saved: saved.slice(0, SAVED_ITEMS_MAX),
     dictCache: pruneCache(dictCache, Date.now()),
-    session: { target: session.target ?? null },
+    session: {
+      target: session.target ?? null,
+      notice: typeof session.notice === "string" ? session.notice : null,
+    },
   };
 }
 
@@ -334,4 +342,32 @@ export async function updateStore<T>(
 /** Explicit, user-initiated cache purge. Only called after the user agrees. */
 export async function clearDictCache(): Promise<void> {
   await updateStore((store) => ({ store: { ...store, dictCache: [] }, result: null }));
+}
+
+// ---------------------------------------------------------------------------
+// Session helpers
+// ---------------------------------------------------------------------------
+
+/** Store the text/accent/speed a panel opened later must show (spec 2). */
+export async function setSessionTarget(target: PracticeTarget | null): Promise<void> {
+  await updateStore((store) => ({
+    store: { ...store, session: { ...store.session, target } },
+    result: null,
+  }));
+}
+
+/** Store a localised message key for the side panel to display once. */
+export async function setSessionNotice(notice: string | null): Promise<void> {
+  await updateStore((store) => ({
+    store: { ...store, session: { ...store.session, notice } },
+    result: null,
+  }));
+}
+
+/** Read and clear the one-off notice. */
+export async function takeSessionNotice(): Promise<string | null> {
+  const store = await readStore();
+  const notice = store.session.notice ?? null;
+  if (notice !== null) await setSessionNotice(null);
+  return notice;
 }

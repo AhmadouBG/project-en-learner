@@ -23,9 +23,29 @@
   "btnStop": { "message": "Arrêter" },
   "btnPractise": { "message": "Pratiquer la prononciation" },
   "btnSave": { "message": "Enregistrer" },
+  "btnSaved": { "message": "Enregistré" },
   "btnCancel": { "message": "Annuler" },
   "btnClose": { "message": "Fermer" },
   "btnRetry": { "message": "Réessayer" },
+  "btnDelete": { "message": "Supprimer" },
+  "btnExport": { "message": "Exporter en JSON" },
+  "btnImport": { "message": "Importer un JSON" },
+  "btnClearAll": { "message": "Tout effacer" },
+  "btnRecord": { "message": "Enregistrer" },
+  "btnStopRecording": { "message": "Arrêter l'enregistrement" },
+  "btnPlayTake": { "message": "Écouter ma prise" },
+  "btnDiscard": { "message": "Supprimer la prise" },
+  "btnStartShadowing": { "message": "Commencer le shadowing" },
+  "btnCancelShadowing": { "message": "Annuler le shadowing" },
+  "btnFlip": { "message": "Retourner la carte" },
+  "btnAgain": { "message": "À revoir" },
+  "btnGood": { "message": "Bien" },
+  "btnNext": { "message": "Suivant" },
+  "btnSkip": { "message": "Passer" },
+  "btnDone": { "message": "Terminé" },
+  "btnAllowMic": { "message": "Autoriser le micro" },
+  "btnOpenSettings": { "message": "Ouvrir les réglages" },
+  "btnTranslate": { "message": "Traduire" },
 
   "accentShortUS": { "message": "US" },
   "accentShortUK": { "message": "UK" },
@@ -39,6 +59,33 @@
   "errNothingSelected": {
     "message": "Aucun texte sélectionné. Sélectionnez du texte et réessayez."
   },
+  "errOpenPanelFailed": {
+    "message": "Le panneau n'a pas pu s'ouvrir automatiquement. Ouvrez-le depuis l'icône de la barre d'outils."
+  },
+  "errTtsUnavailable": {
+    "message": "La synthèse vocale n'est pas disponible dans ce navigateur. Vous pouvez quand même lire l'API."
+  },
+  "errMicDenied": {
+    "message": "Micro bloqué. Cliquez ici pour l'autoriser."
+  },
+  "errMicUnavailable": {
+    "message": "Aucun microphone trouvé. Vérifiez qu'il est branché et réessayez."
+  },
+  "errRecordingFailed": {
+    "message": "L'enregistrement n'a pas pu démarrer. Réessayez."
+  },
+  "errRecognitionUnsupported": {
+    "message": "La vérification des mots n'est pas disponible dans ce navigateur. Vous pouvez comparer votre prise à l'oreille."
+  },
+  "errUnknown": { "message": "Une erreur est survenue. Réessayez." },
+  "errQuota": {
+    "message": "Il n'y a plus d'espace pour enregistrer ceci. Supprimez un élément et réessayez."
+  },
+  "errImportInvalid": {
+    "message": "Ce fichier n'est pas un export d'éléments enregistrés valide."
+  },
+  "errImportEmpty": { "message": "Ce fichier ne contient aucun élément enregistré." },
+  "errImportTooMany": { "message": "Ce fichier contient trop d'éléments à importer." },
 
   "microButtonLabel": {
     "message": "Pratiquer ce texte",
@@ -47,5 +94,230 @@
   "microButtonFirstRun": {
     "message": "Cliquez pour pratiquer ce texte",
     "description": "Tooltip shown once on the very first selection, per spec 4.1."
+  },
+
+  "popupMeaning": { "message": "Sens" },
+  "popupLoadingMeaning": { "message": "Recherche du sens…" },
+  "popupNotFound": {
+    "message": "Aucune définition trouvée pour ce mot. La prononciation peut rester disponible."
+  },
+  "popupOffline": {
+    "message": "Le dictionnaire est injoignable. Vérifiez votre connexion et réessayez."
+  },
+  "popupRateLimited": {
+    "message": "Le dictionnaire est occupé. Réessayez dans un instant."
+  },
+  "popupServerError": {
+    "message": "Le dictionnaire a renvoyé une erreur. Réessayez dans un instant."
+  },
+  "popupNoDefinitions": {
+    "message": "Aucune définition n'est disponible pour ce mot."
+  },
+  "popupExample": { "message": "Exemple" },
+  "popupTranslate": {
+    "message": "Traduire",
+    "description": "Small link that opens Google Translate in a new tab with the selected text."
+  },
+  "popupSaved": { "message": "Ajouté à votre liste." },
+  "popupSaveFailed": { "message": "Impossible d'enregistrer cet élément." },
+  "popupSpeed": { "message": "Vitesse" },
+  "popupIpaNote": {
+    "message": "API avec la syllabe accentuée en évidence."
+  },
+  "popupSentenceIpa": { "message": "API par mot" },
+  "popupHideIpa": { "message": "Masquer l'API" },
+  "popupShowIpa": { "message": "Afficher l'API" },
+  "popupNoIpa": { "message": "Aucune prononciation trouvée." },
+  "popupApproximateIpa": {
+    "message": "Prononciation approximative.",
+    "description": "Shown when a word is not in the bundled dictionary and a rough letter-to-sound spelling is used."
+  },
+  "popupUsFallback": {
+    "message": "Prononciation US affichée ; aucune transcription UK n'est disponible.",
+    "description": "Spec 5.2: never invent UK IPA we did not source."
+  },
+  "popupPanelFallback": {
+    "message": "Le panneau n'a pas pu s'ouvrir automatiquement. Ouvrez-le depuis l'icône de la barre d'outils."
+  },
+  "popupSentenceMeaningUnavailable": {
+    "message": "Les sens ne sont disponibles que pour les mots seuls."
+  },
+  "popupFirstSentence": {
+    "message": "Seule la première phrase sera pratiquée.",
+    "description": "Shown when a selection was longer than 300 characters."
+  },
+
+  "practiceText": { "message": "Texte à pratiquer" },
+  "practiceTextPlaceholder": {
+    "message": "Sélectionnez du texte sur une page ou collez une phrase ici."
+  },
+  "accentLabel": { "message": "Accent" },
+  "speedLabel": { "message": "Vitesse" },
+  "ipaSectionTitle": { "message": "Décomposition phonétique" },
+  "showIpa": { "message": "Afficher l'API" },
+  "loadingIpa": { "message": "Chargement de la prononciation…" },
+  "noIpa": { "message": "Aucune prononciation disponible." },
+  "repeatOn": { "message": "Répétition activée" },
+  "repeatOff": { "message": "Répétition désactivée" },
+  "youglish": { "message": "Exemples natifs" },
+  "poweredByYouglish": { "message": "Propulsé par YouGlish.com" },
+  "shadowSectionTitle": { "message": "Shadowing" },
+  "repeatCount": { "message": "Tours" },
+  "gapLength": { "message": "Pause entre les tours" },
+  "gapSeconds": { "message": "$1 s" },
+  "preparingListening": { "message": "Écoutez et préparez-vous…" },
+  "countdown": { "message": "Départ dans $1…" },
+  "recordingNow": { "message": "Enregistrement…" },
+  "reviewTake": { "message": "Écoutez votre prise, puis continuez." },
+  "shadowingDone": { "message": "Shadowing terminé." },
+  "roundOf": { "message": "Tour $1 sur $2" },
+  "recordSectionTitle": { "message": "Votre prise" },
+  "micExplanation": {
+    "message": "Votre navigateur demandera l'accès au micro lors de votre premier enregistrement. L'audio reste sur cet appareil."
+  },
+  "micPrivacyNote": {
+    "message": "La reconnaissance vocale de Chrome peut envoyer votre audio à Google pour vérifier les mots entendus. Vous pouvez la désactiver dans les réglages."
+  },
+  "playMyTake": { "message": "Écouter ma prise" },
+  "abCompare": { "message": "Comparer A/B" },
+  "discardTake": { "message": "Supprimer la prise" },
+  "recordingTooShort": {
+    "message": "Cette prise est trop courte. Enregistrez à nouveau la phrase entière."
+  },
+  "autoStopNote": {
+    "message": "L'enregistrement s'arrête automatiquement après un court silence, ou à 30 secondes."
+  },
+  "checkWordsSetting": { "message": "Vérifier mes mots après l'enregistrement" },
+  "checkWordsUnsupported": {
+    "message": "La vérification des mots n'est pas disponible dans ce navigateur. Vous pouvez comparer votre prise à l'oreille."
+  },
+  "resultTitle": { "message": "Mots reconnus" },
+  "wordsRecognised": { "message": "Mots reconnus : $1/$2" },
+  "resultNote": {
+    "message": "Ceci vérifie quels mots ont été reconnus, pas les sons individuels ni un score de prononciation."
+  },
+  "transcriptLabel": { "message": "Ce qui a été entendu" },
+  "matchedWord": { "message": "Reconnu" },
+  "missedWord": { "message": "Manqué" },
+  "extraWord": { "message": "Mot en trop" },
+  "replacedWord": { "message": "Entendu comme un autre mot" },
+  "noTakeYet": {
+    "message": "Enregistrez une prise pour voir quels mots ont été reconnus."
+  },
+  "noTextToPractise": {
+    "message": "Sélectionnez du texte sur une page, ou saisissez quelque chose ci-dessus."
+  },
+  "savedToast": { "message": "Enregistré." },
+  "autoSaveNote": {
+    "message": "Enregistré automatiquement après votre première prise. Vous pouvez désactiver ceci dans les réglages."
+  },
+  "sourcePageNote": {
+    "message": "Si activé, les nouveaux éléments enregistrés conservent aussi le titre et l'adresse de la page."
+  },
+
+  "savedEmpty": {
+    "message": "Aucun élément enregistré. Sélectionnez un mot ou une phrase et choisissez Enregistrer."
+  },
+  "savedSearchPlaceholder": { "message": "Rechercher dans les éléments enregistrés" },
+  "savedReview": { "message": "Réviser" },
+  "savedDeleteConfirm": { "message": "Supprimer cet élément enregistré ?" },
+  "savedClearConfirm": {
+    "message": "Supprimer tous les éléments enregistrés ? Cette action est irréversible."
+  },
+  "savedImportInvalid": {
+    "message": "Ce fichier n'est pas un export d'éléments enregistrés valide."
+  },
+  "savedImportEmpty": { "message": "Ce fichier ne contient aucun élément enregistré." },
+  "savedImportTooMany": { "message": "Ce fichier contient trop d'éléments à importer." },
+  "savedImportDone": { "message": "$1 élément(s) importé(s)." },
+  "savedMeaningUnavailable": {
+    "message": "Les sens ne sont disponibles que pour les mots seuls."
+  },
+  "savedLoadingMeaning": { "message": "Chargement du sens…" },
+  "savedNoResult": { "message": "Aucune vérification des mots." },
+  "savedDate": { "message": "Enregistré le $1" },
+  "savedAttempts": { "message": "Tentatives : $1" },
+  "savedBox": { "message": "Boîte de révision : $1" },
+  "savedDeleted": { "message": "Élément supprimé." },
+  "savedExported": { "message": "Export téléchargé." },
+  "savedCount": { "message": "$1 élément(s) enregistré(s)" },
+
+  "settingsTitle": { "message": "Réglages" },
+  "defaultAccent": { "message": "Accent par défaut" },
+  "defaultSpeed": { "message": "Vitesse par défaut" },
+  "voiceUs": { "message": "Voix pour US" },
+  "voiceUk": { "message": "Voix pour UK" },
+  "voiceAuto": { "message": "Automatique (meilleure disponible)" },
+  "voiceOsNote": {
+    "message": "Les voix disponibles dépendent de votre système d'exploitation et du navigateur."
+  },
+  "uiLanguage": { "message": "Langue de l'interface" },
+  "languageEnglish": { "message": "English" },
+  "languageFrench": { "message": "Français" },
+  "showButtonOnSelection": { "message": "Afficher le bouton lors d'une sélection" },
+  "openPracticeAutomatically": {
+    "message": "Ouvrir la pratique automatiquement",
+    "description": "Skip the quick-read pop-up and open the side panel when the micro-button is clicked."
+  },
+  "theme": { "message": "Thème" },
+  "themeSystem": { "message": "Système" },
+  "themeLight": { "message": "Clair" },
+  "themeDark": { "message": "Sombre" },
+  "autoSaveAfterFirstRecording": {
+    "message": "Enregistrer automatiquement après ma première prise"
+  },
+  "checkWordsAfterRecording": { "message": "Vérifier mes mots après l'enregistrement" },
+  "storeSourcePage": { "message": "Conserver la page source avec les éléments enregistrés" },
+  "shortcutHint": { "message": "Raccourci clavier : Alt+Shift+S" },
+  "shortcutLink": { "message": "Modifier le raccourci dans Chrome" },
+  "privacyTitle": { "message": "Confidentialité" },
+  "privacyBody": {
+    "message": "Vos sélections, éléments enregistrés et enregistrements restent sur cet appareil. Seul le mot sélectionné est envoyé à l'API de dictionnaire gratuite pour chercher son sens. La reconnaissance vocale de Chrome peut envoyer votre audio à Google lorsque la vérification des mots est active. YouGlish s'ouvre comme un site normal lorsque vous demandez des exemples natifs."
+  },
+  "creditsTitle": { "message": "Crédits" },
+  "creditsBody": {
+    "message": "Données de dictionnaire issues de Wiktionary via freedictionaryapi.com (CC BY-SA 4.0). Prononciations issues de CMUdict (licence de type BSD). Exemples natifs par YouGlish.com."
+  },
+  "settingsSaved": { "message": "Réglages enregistrés." },
+  "clearCache": { "message": "Vider le cache du dictionnaire" },
+  "clearCacheConfirm": {
+    "message": "Vider les définitions en cache ? Les éléments enregistrés ne sont pas affectés."
+  },
+  "clearCacheDone": { "message": "Cache du dictionnaire vidé." },
+
+  "onboardTitle1": { "message": "Sélectionnez du texte sur une page." },
+  "onboardBody1": {
+    "message": "Un petit bouton apparaît près de votre sélection. Cliquez dessus, ou appuyez sur Alt+Shift+S."
+  },
+  "onboardTitle2": { "message": "Écoutez, puis répétez." },
+  "onboardBody2": {
+    "message": "Écoutez la phrase en anglais US ou UK, puis répétez-la pendant la pause."
+  },
+  "onboardTitle3": { "message": "Enregistrez-vous et révisez." },
+  "onboardBody3": {
+    "message": "Voyez quels mots ont été reconnus, enregistrez ce que vous avez pratiqué et revenez-y plus tard."
+  },
+
+  "permissionTitle": { "message": "Accès au microphone" },
+  "permissionBody": {
+    "message": "English Shadowing a besoin du microphone pour enregistrer votre voix. L'audio reste sur cet appareil, sauf si la vérification des mots l'envoie au service vocal de Chrome."
+  },
+  "permissionAllow": { "message": "Autoriser le microphone" },
+  "permissionGranted": {
+    "message": "Microphone autorisé. Vous pouvez fermer cet onglet et revenir au panneau."
+  },
+  "permissionDenied": {
+    "message": "L'accès au microphone a été refusé. Autorisez-le dans les réglages du site, puis réessayez."
+  },
+  "permissionReturn": { "message": "Revenir au panneau d'entraînement" },
+  "permissionHint": {
+    "message": "Astuce : après avoir autorisé l'accès ici, appuyez à nouveau sur Enregistrer dans le panneau."
+  },
+
+  "noticeRestricted": {
+    "message": "Cette page n'est pas utilisable. Essayez un site web normal."
+  },
+  "noticeNoSelection": {
+    "message": "Aucun texte sélectionné. Sélectionnez du texte et appuyez à nouveau sur Alt+Shift+S."
   }
 }

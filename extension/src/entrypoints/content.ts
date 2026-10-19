@@ -7,6 +7,7 @@
  *   gate.ts       dedupe, debounce, dismissal policy (pure)
  *   selection.ts  read the selection and run the guards
  *   micro-button.ts the 28 px button
+ *   quick-popup.ts  the quick-read pop-up (spec 4.2)
  *
  * Spec 3 requires this to be switchable to `activeTab` + `scripting`. All logic
  * is behind factories and only imported from here, so that swap is a manifest
@@ -15,23 +16,23 @@
 
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { createMicroButton } from "../content/micro-button";
+import { createQuickPopup, type QuickPopupController } from "../content/quick-popup";
 import {
   createSelectionWatcher,
+  isActionableSelection,
+  readSelection,
   targetFromSelection,
   type ResolvedSelection,
 } from "../content/selection";
 import { DEFAULT_SETTINGS, ROOT_KEY, readStore, updateStore } from "../shared/storage";
 import { sendToBackground } from "../shared/bus";
-import type { FromBackground } from "../shared/messages";
+import { loadMessages, makeTranslator, tNow, type Translate } from "../shared/i18n";
+import { requestPanel } from "../shared/requests";
+import type { Accent, FromBackground, PracticeKind, PracticeTarget } from "../shared/messages";
+import type { Settings } from "../shared/storage";
 
 /** Where the content script runs; see DECISIONS.md 8b for why not `<all_urls>`. */
 const MATCHES = ["http://*/*", "https://*/*", "file:///*"];
-
-/**
- * Liveness ping. Chrome leaves content scripts injected when an extension is
- * disabled or reloaded, so before showing any UI the content script asks the
- * service worker whether it is still there. See the note in `main()`.
- */
 
 /** `.pdf` URLs are served by Chrome's built-in PDF viewer. See DECISIONS.md 8b. */
 const EXCLUDE_MATCHES = ["http://*/*.pdf", "https://*/*.pdf", "file://*/*.pdf"];
@@ -65,12 +66,6 @@ export default defineContentScript({
      * extension is gone and we tear ourselves down completely: listeners, DOM,
      * storage subscription. A page refresh brings it back if the user re-enables
      * the extension.
-     *
-     * A long-lived port would push this signal instead of polling, but
-     * `runtime.onConnect` is not implemented in WXT's build-time background
-     * validation, so a ping over the message channel we already have is the
-     * pragmatic choice. It costs one local IPC per accepted selection, never per
-     * event.
      */
     let alive = true;
 
@@ -93,12 +88,6 @@ export default defineContentScript({
       }
     };
 
-    /** Full teardown: the extension is gone, so stop doing anything at all. */
-    const shutdown = (): void => {
-      alive = false;
-      stop();
-      removeStorageListener();
-    };
     /**
      * The running UI, or null when the feature is switched off.
      *
@@ -109,17 +98,84 @@ export default defineContentScript({
      */
     let running: { stop: () => void } | null = null;
 
-    const start = async (): Promise<void> => {
-      if (running) return;
-      const store = await readStore().catch(() => null);
-      const settings = store?.settings ?? DEFAULT_SETTINGS;
+    /** Latest settings; kept in sync with `chrome.storage` while the page is open. */
+    let currentSettings: Settings = DEFAULT_SETTINGS;
+    /** The localised message bag for `settings.uiLanguage`. */
+    let translator: Translate = (key, ...substitutions) => tNow(key, substitutions);
+    /** At most one quick-read pop-up per frame. */
+    let activePopup: QuickPopupController | null = null;
 
+    const loadTranslator = async (settings: Settings): Promise<void> => {
+      const messages = await loadMessages(settings.uiLanguage);
+      translator = makeTranslator(messages);
+    };
+
+    /**
+     * Mark the first-run tooltip as seen and hand the target to the panel.
+     *
+     * One write does both: the panel must see the text/accent/speed together,
+     * and the tooltip must never appear a second time (spec 4.1).
+     */
+    const beginPractice = async (
+      selection: ResolvedSelection,
+      accent: Accent,
+      speed: number,
+    ): Promise<boolean> => {
+      const target: PracticeTarget = targetFromSelection(selection, accent, speed);
+      await updateStore((current) => ({
+        store: {
+          ...current,
+          session: { ...current.session, target },
+          settings: { ...current.settings, firstRunTooltipShown: true },
+        },
+        result: null,
+      })).catch(() => null);
+      return requestPanel(target);
+    };
+
+    const openPopup = async (
+      selection: ResolvedSelection,
+      settings: Settings,
+    ): Promise<void> => {
+      activePopup?.destroy();
+      let popup: QuickPopupController | null = null;
+      popup = createQuickPopup(ctx, {
+        t: translator,
+        settings,
+        selection,
+        onClose: () => {
+          if (activePopup === popup) activePopup = null;
+        },
+        onPractise: async (_kind: PracticeKind, accent: Accent, speed: number) =>
+          beginPractice(selection, accent, speed),
+      });
+      activePopup = popup;
+      await popup.show();
+    };
+
+    const handleActivation = async (
+      selection: ResolvedSelection,
+      settings: Settings,
+    ): Promise<void> => {
+      // Spec 4.3: "Open practice automatically" skips the quick read. It is off
+      // by default, so the normal flow is select -> pop-up -> Practise.
+      if (settings.openPracticeAutomatically) {
+        const opened = await beginPractice(selection, settings.defaultAccent, settings.defaultSpeed);
+        if (opened) return;
+      }
+      await openPopup(selection, settings);
+    };
+
+    const start = (): void => {
+      if (running) return;
       const button = createMicroButton(ctx, {
-        label: t("microButtonLabel"),
+        label: translator("microButtonLabel"),
         // Spec 4.1: the first-run tooltip is shown exactly once.
-        tooltip: settings.firstRunTooltipShown ? null : t("microButtonFirstRun"),
+        tooltip: currentSettings.firstRunTooltipShown
+          ? null
+          : translator("microButtonFirstRun"),
         onActivate: (selection) => {
-          void onButtonActivated(selection);
+          void handleActivation(selection, currentSettings);
         },
         onDismiss: () => undefined,
       });
@@ -159,19 +215,77 @@ export default defineContentScript({
     };
 
     const stop = (): void => {
+      activePopup?.destroy();
+      activePopup = null;
       running?.stop();
     };
 
-    const applySetting = async (enabled: boolean): Promise<void> => {
-      if (enabled) await start();
+    const applySetting = (enabled: boolean): void => {
+      if (enabled) start();
       else stop();
     };
 
-    // Initial state.
-    await applySetting(settingsOrDefault(await readStore()).showButtonOnSelection);
+    /** Full teardown: the extension is gone, so stop doing anything at all. */
+    const shutdown = (): void => {
+      alive = false;
+      stop();
+      removeListeners();
+    };
 
     /**
-     * React to the setting changing while the page stays open.
+     * Answer the background's "open the pop-up for the current selection"
+     * request (spec 5.9: Alt+Shift+S).
+     *
+     * The background cannot read the page's selection, so it asks us. A `false`
+     * reply tells it to show the friendly fallback instead.
+     */
+    const onRuntimeMessage = (
+      message: unknown,
+      _sender: chrome.runtime.MessageSender,
+      sendResponse: (response: unknown) => void,
+    ): boolean => {
+      if (typeof message !== "object" || message === null) return false;
+      const request = message as { type?: unknown; intent?: unknown };
+      if (request.type !== "selection:request") return false;
+
+      void (async () => {
+        if (!(await isAlive())) {
+          shutdown();
+          sendResponse({ ok: false });
+          return;
+        }
+
+        const selection = readSelection();
+        if (!selection || !isActionableSelection(selection, window.location.href)) {
+          sendResponse({ ok: false });
+          return;
+        }
+
+        sendResponse({ ok: true });
+        // The shortcut opens the quick read; the context menu asks to practise.
+        if (request.intent === "practice") {
+          const opened = await beginPractice(
+            selection,
+            currentSettings.defaultAccent,
+            currentSettings.defaultSpeed,
+          );
+          if (!opened) await openPopup(selection, currentSettings);
+          return;
+        }
+        await openPopup(selection, currentSettings);
+      })().catch(() => {
+        try {
+          sendResponse({ ok: false });
+        } catch {
+          // The channel may already be closed; nothing useful to do.
+        }
+      });
+      return true;
+    };
+    chrome.runtime.onMessage.addListener(onRuntimeMessage);
+
+    /**
+     * React to settings changing while the page stays open.
      *
      * Reading the setting once at `document_idle` is not enough: the user would
      * have to refresh every open tab before "Show button on selection" took
@@ -182,60 +296,39 @@ export default defineContentScript({
       area: string,
     ): void => {
       if (area !== "local" || !(ROOT_KEY in changes)) return;
-      void readStore()
-        .then((store) => applySetting(store.settings.showButtonOnSelection))
-        .catch(() => undefined);
+      void (async () => {
+        const store = await readStore().catch(() => null);
+        if (!store) return;
+
+        const languageChanged = store.settings.uiLanguage !== currentSettings.uiLanguage;
+        currentSettings = store.settings;
+
+        if (languageChanged) {
+          await loadTranslator(store.settings);
+          // Labels are baked into the button and tooltip; rebuild both.
+          activePopup?.destroy();
+          running?.stop();
+        }
+        applySetting(store.settings.showButtonOnSelection);
+      })().catch(() => undefined);
     };
     chrome.storage.onChanged.addListener(onStorageChanged);
 
-    /** Declared so the port-disconnect path can detach it too. */
-    function removeStorageListener(): void {
+    /** Detach every listener this script installed. */
+    function removeListeners(): void {
       chrome.storage.onChanged.removeListener(onStorageChanged);
+      chrome.runtime.onMessage.removeListener(onRuntimeMessage);
     }
 
+    // Initial state.
+    const initial = await readStore().catch(() => null);
+    currentSettings = initial?.settings ?? DEFAULT_SETTINGS;
+    await loadTranslator(currentSettings);
+    applySetting(currentSettings.showButtonOnSelection);
+
     ctx.onInvalidated(() => {
-      removeStorageListener();
+      removeListeners();
       stop();
     });
   },
 });
-
-/** Read settings from a store, falling back to defaults. */
-function settingsOrDefault(store: Awaited<ReturnType<typeof readStore>> | null) {
-  return store?.settings ?? DEFAULT_SETTINGS;
-}
-
-/**
- * Mark the first-run tooltip as shown, then ask the background to open the side
- * panel for this selection.
- *
- * The panel cannot display the text until its own phase; opening it is the
- * visible end-to-end result today and is where the text hand-off lands next.
- */
-async function onButtonActivated(
-  selection: Parameters<typeof targetFromSelection>[0],
-): Promise<void> {
-  const store = await readStore().catch(() => null);
-  const settings = settingsOrDefault(store);
-  const target = targetFromSelection(selection, settings.defaultAccent, settings.defaultSpeed);
-
-  // One write: stash the target and mark the tooltip as seen.
-  await updateStore((current) => ({
-    store: {
-      ...current,
-      session: { target },
-      settings: { ...current.settings, firstRunTooltipShown: true },
-    },
-    result: null,
-  })).catch(() => null);
-
-  await sendToBackground<FromBackground>({ type: "open-panel", target }, (reply) => reply).catch(
-    () => null,
-  );
-}
-
-/** `chrome.i18n` lookup with a visible fallback. */
-function t(key: string): string {
-  const message = chrome.i18n.getMessage(key);
-  return message === "" ? key : message;
-}

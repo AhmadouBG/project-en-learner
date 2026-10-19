@@ -244,17 +244,30 @@ hosts on a nested-frame page, all of which must be torn down on navigation.
 
 ---
 
-## 9. TTS runs in an extension page, never in the page context
+## 9. TTS runs in an extension page or the quick-read pop-up
 
-`speechSynthesis` is a DOM API, and MV3 service workers have no DOM. So all TTS
-must happen in the side panel or pop-up, never in the content script.
+`speechSynthesis` is a DOM API, and MV3 service workers have no DOM. The side
+panel is a document, so the practice loop's TTS lives there.
 
-Two consequences, stated rather than hidden:
+**Amended in Phase 4.** The original version of this decision said TTS must run
+in the side panel or pop-up and *never* in the content script. That made the
+quick-read pop-up unusable: the user selects a word and presses Listen without
+opening the panel, so there is no extension-page document to speak from. The
+pop-up therefore owns a `Speaker` in the content script, using the same module
+as the panel (`src/services/tts.ts`), so voice selection, chunking and the
+boundary fallback cannot drift apart. The rest of the decision stands: TTS
+never runs in the service worker, and the practice loop still runs in the panel.
 
-1. Audio requires an extension page to be open. Closing the side panel stops
-   playback. This is acceptable because the practice loop lives in the panel.
-2. Running TTS inside the extension also avoids contending with any
-   `speechSynthesis` usage by the host page.
+Consequences, stated rather than hidden:
+
+1. Audio requires an extension page or the pop-up to be open. Closing both stops
+   playback. This is acceptable for a shadowing tool: the user is listening.
+2. `speechSynthesis` is shared with the host page, so a page that speaks while
+   our pop-up speaks can interleave utterances. We call `cancel()` before each
+   utterance and stop our own audio when the pop-up closes.
+3. A content-script utterance is subject to the page's lifecycle. Navigating or
+   closing the tab stops it, which is the expected behaviour for a pop-up
+   anchored to that page.
 
 We use `speechSynthesis` rather than `chrome.tts`: `chrome.tts` cannot be rate
 controlled, and speed control is core to shadowing.
