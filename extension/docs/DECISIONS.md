@@ -634,6 +634,24 @@ import/export, shadow cancel), `check-shortcut.mjs` (Alt+Shift+S + translated
 labels), `check-selection.mjs`, `check-shadow-mount.mjs`, `check-ipa.mjs`,
 `check-dict-runtime.mjs`.
 
+**Still manual (cannot be proven headlessly).**
+
+- **Real speech, correct vs deliberately wrong reading.** Headless Chrome has no
+  `SpeechRecognition`, so `check-recording.mjs` can only prove the *unsupported*
+  branch. Alignment itself is unit-tested; a human still needs to read a phrase
+  correctly and then wrongly and confirm the green/red result.
+- **`chrome.sidePanel.open()` user-gesture paths.** A click synthesised by CDP is
+  not a browser user gesture, so the panel may not open even when a real click
+  would succeed. The localised fallback (`popupPanelFallback`) is implemented and
+  the hand-off target is written before the call (proven by
+  `check-selection.mjs`). Verify the toolbar/shortcut/context-menu openings in a
+  normal profile.
+- **Context menu.** The native right-click menu cannot be driven from CDP; the
+  item is created once on install/update and its handler is covered by the same
+  `practiseText` path as the shortcut.
+- **macOS/Linux voice selection.** Only Windows Chrome was available.
+
+
 **Sizes (production `wxt build`, Chrome MV3).**
 
 | Artifact | Size |
