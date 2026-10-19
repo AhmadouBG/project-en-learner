@@ -26,8 +26,8 @@ import {
 } from "../content/selection";
 import { DEFAULT_SETTINGS, ROOT_KEY, readStore, updateStore } from "../shared/storage";
 import { sendToBackground } from "../shared/bus";
-import { loadMessages, makeTranslator, tNow, type Translate } from "../shared/i18n";
-import { requestPanel } from "../shared/requests";
+import { makeTranslator, tNow, type Translate } from "../shared/i18n";
+import { requestMessages, requestPanel } from "../shared/requests";
 import type { Accent, FromBackground, PracticeKind, PracticeTarget } from "../shared/messages";
 import type { Settings } from "../shared/storage";
 
@@ -106,8 +106,13 @@ export default defineContentScript({
     let activePopup: QuickPopupController | null = null;
 
     const loadTranslator = async (settings: Settings): Promise<void> => {
-      const messages = await loadMessages(settings.uiLanguage);
-      translator = makeTranslator(messages);
+      // A content script cannot read `_locales` itself (cross-origin fetch), so
+      // the background answers with the bag. If that fails, `tNow` still gives
+      // the browser's language through `chrome.i18n` instead of raw keys.
+      const messages = await requestMessages(settings.uiLanguage);
+      translator = messages
+        ? makeTranslator(messages)
+        : (key, ...substitutions) => tNow(key, substitutions);
     };
 
     /**

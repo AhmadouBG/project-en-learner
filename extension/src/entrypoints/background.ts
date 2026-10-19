@@ -2,7 +2,7 @@ import { defineBackground } from "wxt/utils/define-background";
 import { lookupDictionary } from "../background/dictionary-cache";
 import { loadBundledTable, lookup, lookupVariants } from "../ipa/lookup";
 import { sendToTab } from "../shared/bus";
-import { tNow } from "../shared/i18n";
+import { tNow, loadMessages } from "../shared/i18n";
 import {
   classifyText,
   type FromBackground,
@@ -88,6 +88,17 @@ export default defineBackground(() => {
       if (typeof word !== "string" || typeof requestId !== "string") return false;
 
       void answerIpa(word, requestId, sendResponse);
+      return true;
+    }
+
+    if (type === "i18n:messages") {
+      const language = (message as { language?: unknown }).language;
+      const requestId = (message as { requestId?: unknown }).requestId;
+      if ((language !== "en" && language !== "fr") || typeof requestId !== "string") {
+        return false;
+      }
+
+      void answerMessages(language, requestId, sendResponse);
       return true;
     }
 
@@ -252,6 +263,22 @@ async function answerIpa(
     result = { ok: false, word };
   }
   sendResponse({ type: "ipa:result", requestId, result });
+}
+
+/**
+ * Answer a message-bag request from a content script (spec 3).
+ *
+ * The background is an extension context, so it is the only place (besides an
+ * extension page) that can read `_locales`. A failed read still answers with an
+ * empty bag: the caller then falls back to `chrome.i18n`.
+ */
+async function answerMessages(
+  language: "en" | "fr",
+  requestId: string,
+  sendResponse: (response: unknown) => void,
+): Promise<void> {
+  const messages = await loadMessages(language).catch(() => ({}));
+  sendResponse({ type: "i18n:result", requestId, messages });
 }
 
 async function createContextMenu(): Promise<void> {

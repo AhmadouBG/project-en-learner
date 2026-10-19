@@ -24,6 +24,14 @@ export const ACCENTS: readonly Accent[] = ["en-US", "en-GB"];
 
 export type PracticeKind = "word" | "sentence";
 
+/**
+ * UI language codes, mirroring `storage.UiLanguage`.
+ *
+ * Duplicated as a literal union rather than imported, because `storage.ts`
+ * already imports this module and a value cycle would be worse than two strings.
+ */
+export type UiLanguageCode = "en" | "fr";
+
 /** Playback speeds offered in the pop-up (spec 4.2). The panel adds more. */
 export const POPUP_SPEEDS = [0.5, 0.75, 1] as const;
 export type PopupSpeed = (typeof POPUP_SPEEDS)[number];
@@ -88,6 +96,19 @@ export type ToBackground =
       readonly type: "ipa:lookup";
       readonly word: string;
       readonly requestId: string;
+    }
+  | {
+      /**
+       * The localised message bag (spec 3, 5.10).
+       *
+       * A content script cannot fetch `chrome-extension://…/_locales/…`: it runs
+       * on the page's origin, so the request is cross-origin and fails, and the
+       * UI silently falls back to showing raw message keys. Only an extension
+       * context can read those files, so the background answers here.
+       */
+      readonly type: "i18n:messages";
+      readonly language: UiLanguageCode;
+      readonly requestId: string;
     };
 
 // ---------------------------------------------------------------------------
@@ -97,6 +118,11 @@ export type ToBackground =
 export type FromBackground =
   | { readonly type: "dict:result"; readonly requestId: string; readonly result: DictionaryResult }
   | { readonly type: "ipa:result"; readonly requestId: string; readonly result: IpaResult }
+  | {
+      readonly type: "i18n:result";
+      readonly requestId: string;
+      readonly messages: Readonly<Record<string, string>>;
+    }
   | { readonly type: "panel:opened"; readonly ok: boolean }
   | { readonly type: "panel:begin-practice"; readonly target: PracticeTarget }
   | { readonly type: "panel:show-notice"; readonly messageKey: string }
