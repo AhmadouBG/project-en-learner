@@ -15,45 +15,114 @@
     "message": "Practise the selected text",
     "description": "Description of the keyboard shortcut shown in chrome://extensions/shortcuts."
   },
-  "tabPractise": { "message": "Practise" },
-  "tabSaved": { "message": "Saved" },
-  "tabSettings": { "message": "Settings" },
-
-  "btnListen": { "message": "Listen" },
-  "btnStop": { "message": "Stop" },
-  "btnPractise": { "message": "Practise pronunciation" },
-  "btnSave": { "message": "Save" },
-  "btnSaved": { "message": "Saved" },
-  "btnCancel": { "message": "Cancel" },
-  "btnClose": { "message": "Close" },
-  "btnRetry": { "message": "Try again" },
-  "btnDelete": { "message": "Delete" },
-  "btnExport": { "message": "Export JSON" },
-  "btnImport": { "message": "Import JSON" },
-  "btnClearAll": { "message": "Clear all" },
-  "btnRecord": { "message": "Record" },
-  "btnStopRecording": { "message": "Stop recording" },
-  "btnPlayTake": { "message": "Play my take" },
-  "btnDiscard": { "message": "Discard" },
-  "btnStartShadowing": { "message": "Start shadowing" },
-  "btnCancelShadowing": { "message": "Cancel shadowing" },
-  "btnFlip": { "message": "Flip card" },
-  "btnAgain": { "message": "Again" },
-  "btnGood": { "message": "Good" },
-  "btnNext": { "message": "Next" },
-  "btnBack": { "message": "Back" },
-  "btnSkip": { "message": "Skip" },
-  "btnDone": { "message": "Done" },
-  "btnAllowMic": { "message": "Allow microphone" },
-  "btnOpenSettings": { "message": "Open settings" },
-  "btnTranslate": { "message": "Translate" },
-
-  "accentShortUS": { "message": "US" },
-  "accentShortUK": { "message": "UK" },
-  "accentLongUS": { "message": "American English" },
-  "accentLongUK": { "message": "British English" },
-
-  "errNoText": { "message": "Select some text first." },
+  "tabPractise": {
+    "message": "Practise"
+  },
+  "tabSaved": {
+    "message": "Saved"
+  },
+  "tabSettings": {
+    "message": "Settings"
+  },
+  "btnListen": {
+    "message": "Listen"
+  },
+  "btnStop": {
+    "message": "Stop"
+  },
+  "btnPractise": {
+    "message": "Practise pronunciation"
+  },
+  "btnSave": {
+    "message": "Save"
+  },
+  "btnSaved": {
+    "message": "Saved"
+  },
+  "btnCancel": {
+    "message": "Cancel"
+  },
+  "btnClose": {
+    "message": "Close"
+  },
+  "btnRetry": {
+    "message": "Try again"
+  },
+  "btnDelete": {
+    "message": "Delete"
+  },
+  "btnExport": {
+    "message": "Export JSON"
+  },
+  "btnImport": {
+    "message": "Import JSON"
+  },
+  "btnClearAll": {
+    "message": "Clear all"
+  },
+  "btnRecord": {
+    "message": "Record"
+  },
+  "btnStopRecording": {
+    "message": "Stop recording"
+  },
+  "btnPlayTake": {
+    "message": "Play my take"
+  },
+  "btnDiscard": {
+    "message": "Discard"
+  },
+  "btnStartShadowing": {
+    "message": "Start shadowing"
+  },
+  "btnCancelShadowing": {
+    "message": "Cancel shadowing"
+  },
+  "btnFlip": {
+    "message": "Flip card"
+  },
+  "btnAgain": {
+    "message": "Again"
+  },
+  "btnGood": {
+    "message": "Good"
+  },
+  "btnNext": {
+    "message": "Next"
+  },
+  "btnBack": {
+    "message": "Back"
+  },
+  "btnSkip": {
+    "message": "Skip"
+  },
+  "btnDone": {
+    "message": "Done"
+  },
+  "btnAllowMic": {
+    "message": "Allow microphone"
+  },
+  "btnOpenSettings": {
+    "message": "Open settings"
+  },
+  "btnTranslate": {
+    "message": "Translate"
+  },
+  "accentShortUS": {
+    "message": "US"
+  },
+  "accentShortUK": {
+    "message": "UK"
+  },
+  "accentLongUS": {
+    "message": "American English"
+  },
+  "accentLongUK": {
+    "message": "British English"
+  },
+  "errNoText": {
+    "message": "Select some text first."
+  },
   "errRestrictedPage": {
     "message": "This page can't be used. Try a normal website.",
     "description": "Shown when the shortcut is pressed on chrome://, the Web Store or the PDF viewer."
@@ -79,16 +148,21 @@
   "errRecognitionUnsupported": {
     "message": "Word checking is not available in this browser. You can still compare your take by ear."
   },
-  "errUnknown": { "message": "Something went wrong. Please try again." },
+  "errUnknown": {
+    "message": "Something went wrong. Please try again."
+  },
   "errQuota": {
     "message": "There is no space left to save this. Delete a saved item and try again."
   },
   "errImportInvalid": {
     "message": "That file is not a valid saved-items export."
   },
-  "errImportEmpty": { "message": "That file contains no saved items." },
-  "errImportTooMany": { "message": "That file contains too many items to import." },
-
+  "errImportEmpty": {
+    "message": "That file contains no saved items."
+  },
+  "errImportTooMany": {
+    "message": "That file contains too many items to import."
+  },
   "microButtonLabel": {
     "message": "Practise this text",
     "description": "Accessible name of the 28 px button that appears next to a selection."
@@ -97,9 +171,12 @@
     "message": "Click to practise this text",
     "description": "Tooltip shown once on the very first selection, per spec 4.1."
   },
-
-  "popupMeaning": { "message": "Meaning" },
-  "popupLoadingMeaning": { "message": "Looking up the meaning…" },
+  "popupMeaning": {
+    "message": "Meaning"
+  },
+  "popupLoadingMeaning": {
+    "message": "Looking up the meaning…"
+  },
   "popupNotFound": {
     "message": "No definition found for this word. The pronunciation may still be available."
   },
@@ -115,21 +192,37 @@
   "popupNoDefinitions": {
     "message": "No definitions are available for this word."
   },
-  "popupExample": { "message": "Example" },
+  "popupExample": {
+    "message": "Example"
+  },
   "popupTranslate": {
     "message": "Translate",
     "description": "Small link that opens Google Translate in a new tab with the selected text."
   },
-  "popupSaved": { "message": "Saved to your list." },
-  "popupSaveFailed": { "message": "Could not save this item." },
-  "popupSpeed": { "message": "Speed" },
+  "popupSaved": {
+    "message": "Saved to your list."
+  },
+  "popupSaveFailed": {
+    "message": "Could not save this item."
+  },
+  "popupSpeed": {
+    "message": "Speed"
+  },
   "popupIpaNote": {
     "message": "IPA with the stressed syllable highlighted."
   },
-  "popupSentenceIpa": { "message": "IPA per word" },
-  "popupHideIpa": { "message": "Hide IPA" },
-  "popupShowIpa": { "message": "Show IPA" },
-  "popupNoIpa": { "message": "No pronunciation found." },
+  "popupSentenceIpa": {
+    "message": "IPA per word"
+  },
+  "popupHideIpa": {
+    "message": "Hide IPA"
+  },
+  "popupShowIpa": {
+    "message": "Show IPA"
+  },
+  "popupNoIpa": {
+    "message": "No pronunciation found."
+  },
   "popupApproximateIpa": {
     "message": "Approximate pronunciation.",
     "description": "Shown when a word is not in the bundled dictionary and a rough letter-to-sound spelling is used."
@@ -148,174 +241,322 @@
     "message": "Only the first sentence will be practised.",
     "description": "Shown when a selection was longer than 300 characters."
   },
-
-  "practiceText": { "message": "Text to practise" },
+  "practiceText": {
+    "message": "Text to practise"
+  },
   "practiceTextPlaceholder": {
     "message": "Select text on a page, or paste a sentence here."
   },
-  "accentLabel": { "message": "Accent" },
-  "speedLabel": { "message": "Speed" },
-  "ipaSectionTitle": { "message": "Phonetic breakdown" },
-  "showIpa": { "message": "Show IPA" },
-  "loadingIpa": { "message": "Loading pronunciation…" },
-  "noIpa": { "message": "No pronunciation available." },
-  "repeatOn": { "message": "Repeat is on" },
-  "repeatOff": { "message": "Repeat is off" },
-  "youglish": { "message": "Native examples" },
-  "poweredByYouglish": { "message": "Powered by YouGlish.com" },
-  "shadowSectionTitle": { "message": "Shadowing" },
-  "repeatCount": { "message": "Rounds" },
-  "gapLength": { "message": "Gap between rounds" },
-  "gapSeconds": { "message": "$1 s" },
-  "preparingListening": { "message": "Listen and get ready…" },
-  "countdown": { "message": "Starting in $1…" },
-  "recordingNow": { "message": "Recording…" },
-  "reviewTake": { "message": "Review this take, then continue." },
-  "shadowingDone": { "message": "Shadowing complete." },
-  "roundOf": { "message": "Round $1 of $2" },
-  "recordSectionTitle": { "message": "Your take" },
+  "accentLabel": {
+    "message": "Accent"
+  },
+  "speedLabel": {
+    "message": "Speed"
+  },
+  "ipaSectionTitle": {
+    "message": "Phonetic breakdown"
+  },
+  "showIpa": {
+    "message": "Show IPA"
+  },
+  "loadingIpa": {
+    "message": "Loading pronunciation…"
+  },
+  "noIpa": {
+    "message": "No pronunciation available."
+  },
+  "repeatOn": {
+    "message": "Repeat"
+  },
+  "repeatOff": {
+    "message": "Repeat"
+  },
+  "youglish": {
+    "message": "Native examples"
+  },
+  "poweredByYouglish": {
+    "message": "Powered by YouGlish.com"
+  },
+  "shadowSectionTitle": {
+    "message": "Shadowing"
+  },
+  "repeatCount": {
+    "message": "Rounds"
+  },
+  "gapLength": {
+    "message": "Gap between rounds"
+  },
+  "gapSeconds": {
+    "message": "$1 s"
+  },
+  "preparingListening": {
+    "message": "Listen and get ready…"
+  },
+  "countdown": {
+    "message": "Starting in $1…"
+  },
+  "recordingNow": {
+    "message": "Recording…"
+  },
+  "reviewTake": {
+    "message": "Review this take, then continue."
+  },
+  "shadowingDone": {
+    "message": "Shadowing complete."
+  },
+  "roundOf": {
+    "message": "Round $1 of $2"
+  },
+  "recordSectionTitle": {
+    "message": "Your take"
+  },
   "micExplanation": {
     "message": "Your browser will ask for microphone access the first time you record. The audio stays on this device."
   },
   "micPrivacyNote": {
     "message": "Chrome's speech recognition may send your audio to Google to check which words it heard. You can turn this off in Settings."
   },
-  "playMyTake": { "message": "Play my take" },
-  "abCompare": { "message": "A/B compare" },
-  "discardTake": { "message": "Discard take" },
+  "playMyTake": {
+    "message": "Play my take"
+  },
+  "abCompare": {
+    "message": "A/B compare"
+  },
+  "discardTake": {
+    "message": "Discard take"
+  },
   "recordingTooShort": {
     "message": "That take was too short. Record again and say the whole phrase."
   },
   "autoStopNote": {
     "message": "Recording stops automatically after a short silence, or at 30 seconds."
   },
-  "checkWordsSetting": { "message": "Check my words after recording" },
+  "checkWordsSetting": {
+    "message": "Check my words after recording"
+  },
   "checkWordsUnsupported": {
     "message": "Word checking is not available in this browser. You can still compare your take by ear."
   },
-  "resultTitle": { "message": "Words recognised" },
-  "wordsRecognised": { "message": "Words recognised: $1/$2" },
+  "resultTitle": {
+    "message": "Words recognised"
+  },
+  "wordsRecognised": {
+    "message": "Words recognised: $1/$2"
+  },
   "resultNote": {
     "message": "This checks which words were recognised, not individual sounds or your pronunciation score."
   },
-  "transcriptLabel": { "message": "What was heard" },
-  "matchedWord": { "message": "Recognised" },
-  "missedWord": { "message": "Missed" },
-  "extraWord": { "message": "Extra word" },
-  "replacedWord": { "message": "Heard as a different word" },
+  "transcriptLabel": {
+    "message": "What was heard"
+  },
+  "matchedWord": {
+    "message": "Recognised"
+  },
+  "missedWord": {
+    "message": "Missed"
+  },
+  "extraWord": {
+    "message": "Extra word"
+  },
+  "replacedWord": {
+    "message": "Heard as a different word"
+  },
   "noTakeYet": {
     "message": "Record a take to see which words were recognised."
   },
   "noTextToPractise": {
     "message": "Select text on a page, or type something above to start."
   },
-  "savedToast": { "message": "Saved." },
+  "savedToast": {
+    "message": "Saved."
+  },
   "autoSaveNote": {
     "message": "Saved automatically after your first recording. You can turn this off in Settings."
   },
   "sourcePageNote": {
     "message": "When enabled, new saved items also store the page title and address."
   },
-
   "savedEmpty": {
     "message": "No saved items yet. Select a word or sentence and choose Save."
   },
-  "savedSearchPlaceholder": { "message": "Search saved items" },
-  "savedReview": { "message": "Review" },
-  "savedDeleteConfirm": { "message": "Delete this saved item?" },
+  "savedSearchPlaceholder": {
+    "message": "Search saved items"
+  },
+  "savedReview": {
+    "message": "Review"
+  },
+  "savedDeleteConfirm": {
+    "message": "Delete this saved item?"
+  },
   "savedClearConfirm": {
     "message": "Delete every saved item? This cannot be undone."
   },
   "savedImportInvalid": {
     "message": "That file is not a valid saved-items export."
   },
-  "savedImportEmpty": { "message": "That file contains no saved items." },
-  "savedImportTooMany": { "message": "That file contains too many items to import." },
-  "savedImportDone": { "message": "Imported $1 item(s)." },
+  "savedImportEmpty": {
+    "message": "That file contains no saved items."
+  },
+  "savedImportTooMany": {
+    "message": "That file contains too many items to import."
+  },
+  "savedImportDone": {
+    "message": "Imported $1 item(s)."
+  },
   "savedMeaningUnavailable": {
     "message": "Meanings are available for single words only."
   },
-  "savedLoadingMeaning": { "message": "Loading meaning…" },
-  "savedNoResult": { "message": "No word check yet." },
-  "savedDate": { "message": "Saved $1" },
-  "savedAttempts": { "message": "Attempts: $1" },
-  "savedBox": { "message": "Review box: $1" },
-  "savedDeleted": { "message": "Item deleted." },
-  "savedExported": { "message": "Export downloaded." },
-  "savedCount": { "message": "$1 saved item(s)" },
-
-  "settingsTitle": { "message": "Settings" },
-  "defaultAccent": { "message": "Default accent" },
-  "defaultSpeed": { "message": "Default speed" },
-  "voiceUs": { "message": "Voice for US" },
-  "voiceUk": { "message": "Voice for UK" },
-  "voiceAuto": { "message": "Automatic (best available)" },
+  "savedLoadingMeaning": {
+    "message": "Loading meaning…"
+  },
+  "savedNoResult": {
+    "message": "No word check yet."
+  },
+  "savedDate": {
+    "message": "Saved $1"
+  },
+  "savedAttempts": {
+    "message": "Attempts: $1"
+  },
+  "savedBox": {
+    "message": "Review box: $1"
+  },
+  "savedDeleted": {
+    "message": "Item deleted."
+  },
+  "savedExported": {
+    "message": "Export downloaded."
+  },
+  "savedCount": {
+    "message": "$1 saved item(s)"
+  },
+  "settingsTitle": {
+    "message": "Settings"
+  },
+  "defaultAccent": {
+    "message": "Default accent"
+  },
+  "defaultSpeed": {
+    "message": "Default speed"
+  },
+  "voiceUs": {
+    "message": "Voice for US"
+  },
+  "voiceUk": {
+    "message": "Voice for UK"
+  },
+  "voiceAuto": {
+    "message": "Automatic (best available)"
+  },
   "voiceOsNote": {
     "message": "Available voices depend on your operating system and browser."
   },
-  "uiLanguage": { "message": "Interface language" },
-  "languageEnglish": { "message": "English" },
-  "languageFrench": { "message": "Français" },
-  "showButtonOnSelection": { "message": "Show button on selection" },
+  "uiLanguage": {
+    "message": "Interface language"
+  },
+  "languageEnglish": {
+    "message": "English"
+  },
+  "languageFrench": {
+    "message": "Français"
+  },
+  "showButtonOnSelection": {
+    "message": "Show button on selection"
+  },
   "openPracticeAutomatically": {
     "message": "Open practice automatically",
     "description": "Skip the quick-read pop-up and open the side panel when the micro-button is clicked."
   },
-  "theme": { "message": "Theme" },
-  "themeSystem": { "message": "System" },
-  "themeLight": { "message": "Light" },
-  "themeDark": { "message": "Dark" },
+  "theme": {
+    "message": "Theme"
+  },
+  "themeSystem": {
+    "message": "System"
+  },
+  "themeLight": {
+    "message": "Light"
+  },
+  "themeDark": {
+    "message": "Dark"
+  },
   "autoSaveAfterFirstRecording": {
     "message": "Save automatically after my first recording"
   },
-  "checkWordsAfterRecording": { "message": "Check my words after recording" },
-  "storeSourcePage": { "message": "Store the source page with saved items" },
-  "shortcutHint": { "message": "Keyboard shortcut: Alt+Shift+S" },
-  "shortcutLink": { "message": "Change the shortcut in Chrome" },
-  "privacyTitle": { "message": "Privacy" },
+  "checkWordsAfterRecording": {
+    "message": "Check my words after recording"
+  },
+  "storeSourcePage": {
+    "message": "Store the source page with saved items"
+  },
+  "shortcutHint": {
+    "message": "Keyboard shortcut: Alt+Shift+S"
+  },
+  "shortcutLink": {
+    "message": "Change the shortcut in Chrome"
+  },
+  "privacyTitle": {
+    "message": "Privacy"
+  },
   "privacyBody": {
     "message": "Your selections, saved items and recordings stay on this device. Only the selected word is sent to the free dictionary API to look up its meaning. Chrome's speech recognition may send your audio to Google when word checking is on. YouGlish and the Translate link open as normal websites only when you click them."
   },
-  "creditsTitle": { "message": "Credits" },
+  "creditsTitle": {
+    "message": "Credits"
+  },
   "creditsBody": {
     "message": "Dictionary data from Wiktionary via freedictionaryapi.com (CC BY-SA 4.0). Pronunciations from CMUdict (BSD-style licence). Native examples by YouGlish.com."
   },
-  "settingsSaved": { "message": "Settings saved." },
-  "clearCache": { "message": "Clear the dictionary cache" },
+  "settingsSaved": {
+    "message": "Settings saved."
+  },
+  "clearCache": {
+    "message": "Clear the dictionary cache"
+  },
   "clearCacheConfirm": {
     "message": "Clear cached definitions? Saved items are not affected."
   },
-  "clearCacheDone": { "message": "Dictionary cache cleared." },
-
-  "onboardTitle1": { "message": "Select any text on a page." },
+  "clearCacheDone": {
+    "message": "Dictionary cache cleared."
+  },
+  "onboardTitle1": {
+    "message": "Select any text on a page."
+  },
   "onboardBody1": {
     "message": "A small button appears next to your selection. Click it, or press Alt+Shift+S."
   },
-  "onboardTitle2": { "message": "Listen, then shadow it." },
+  "onboardTitle2": {
+    "message": "Listen, then shadow it."
+  },
   "onboardBody2": {
     "message": "Hear the phrase in US or UK English, then repeat it in the gap."
   },
-  "onboardTitle3": { "message": "Record yourself and review." },
+  "onboardTitle3": {
+    "message": "Record yourself and review."
+  },
   "onboardBody3": {
     "message": "See which words were recognised, save what you practised, and come back to it later."
   },
-
-  "permissionTitle": { "message": "Microphone access" },
+  "permissionTitle": {
+    "message": "Microphone access"
+  },
   "permissionBody": {
     "message": "English Shadowing needs microphone access to record your voice. Audio stays on this device unless word checking sends it to Chrome's speech service."
   },
-  "permissionAllow": { "message": "Allow microphone" },
+  "permissionAllow": {
+    "message": "Allow microphone"
+  },
   "permissionGranted": {
     "message": "Microphone allowed. You can close this tab and return to the panel."
   },
   "permissionDenied": {
     "message": "Microphone access was denied. Allow it in the browser's site settings, then try again."
   },
-  "permissionReturn": { "message": "Return to the practice panel" },
+  "permissionReturn": {
+    "message": "Return to the practice panel"
+  },
   "permissionHint": {
     "message": "Tip: after allowing access here, press Record again in the panel."
   },
-
   "noticeRestricted": {
     "message": "This page can't be used. Try a normal website."
   },

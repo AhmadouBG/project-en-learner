@@ -36,6 +36,7 @@ import {
 } from "../ipa/display";
 import { Speaker, browserSpeechSource, SPEEDS } from "../services/tts";
 import type { Syllable } from "../ipa/arpabet";
+import { makeSvgSpeakerIcon, makeSvgStopIcon } from "../ui/icons";
 
 const WIDTH = 320;
 
@@ -526,14 +527,14 @@ export function createQuickPopup(
     }
     if (speaker.isSpeaking) {
       speaker.stop();
-      listenButton.textContent = t("btnListen");
+      listenButton.replaceChildren(makeSvgSpeakerIcon(), ` ${t("btnListen")}`);
       ipaEl?.classList.remove("is-speaking");
       clearSentenceHighlight();
       return;
     }
 
     const rate = speed;
-    listenButton.textContent = t("btnStop");
+    listenButton.replaceChildren(makeSvgStopIcon(), ` ${t("btnStop")}`);
     ipaEl?.classList.add("is-speaking");
 
     const voiceName = accent === "en-GB" ? settings.voiceUk : settings.voiceUs;
@@ -547,12 +548,12 @@ export function createQuickPopup(
         },
         onEnd: () => {
           if (closed) return;
-          if (listenButton) listenButton.textContent = t("btnListen");
+          if (listenButton) listenButton.replaceChildren(makeSvgSpeakerIcon(), ` ${t("btnListen")}`);
           ipaEl?.classList.remove("is-speaking");
           clearSentenceHighlight();
         },
         onError: () => {
-          if (listenButton) listenButton.textContent = t("btnListen");
+          if (listenButton) listenButton.replaceChildren(makeSvgSpeakerIcon(), ` ${t("btnListen")}`);
           ipaEl?.classList.remove("is-speaking");
           clearSentenceHighlight();
           setStatus(t("errTtsUnavailable"), "error");
@@ -715,7 +716,7 @@ export function createQuickPopup(
         listenButton = el({
           tag: "button",
           class: "es-listen",
-          text: `🔊 ${t("btnListen")}`,
+          children: [makeSvgSpeakerIcon(), ` ${t("btnListen")}`],
           attrs: { type: "button" },
         }) as HTMLButtonElement;
         listenButton.addEventListener("click", startListen);

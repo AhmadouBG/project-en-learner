@@ -43,6 +43,12 @@ import { diffWords, type WordDiff } from "../services/diff";
 import { ShadowLoop, abortableWait, type ShadowState } from "../services/shadow";
 import { saveDraft } from "../shared/saved";
 import type { Settings, WordCheckResult } from "../shared/storage";
+import {
+  makeSvgPlayIcon,
+  makeSvgStopIcon,
+  makeSvgRepeatIcon,
+  makeSvgRecordIcon,
+} from "../ui/icons";
 
 export interface PractiseTab {
   readonly element: HTMLElement;
@@ -61,6 +67,8 @@ interface TakeState {
 const IPA_DEBOUNCE_MS = 350;
 const MAX_IPA_WORDS = 80;
 const RECOGNITION_GRACE_MS = 4_000;
+
+
 
 function youGlishUrl(text: string, accent: Accent): string {
   const variety = accent === "en-GB" ? "uk" : "us";
@@ -201,19 +209,19 @@ export function createPractiseTab(host: PanelHost): PractiseTab {
   const listenButton = el({
     tag: "button",
     class: "button primary",
-    text: `▶ ${t("btnListen")}`,
+    children: [makeSvgPlayIcon(), ` ${t("btnListen")}`],
     attrs: { type: "button" },
   }) as HTMLButtonElement;
   const stopButton = el({
     tag: "button",
     class: "button",
-    text: `⏹ ${t("btnStop")}`,
+    children: [makeSvgStopIcon(), ` ${t("btnStop")}`],
     attrs: { type: "button" },
   }) as HTMLButtonElement;
   const repeatButton = el({
     tag: "button",
     class: "button",
-    text: `🔁 ${t("repeatOn")}`,
+    children: [makeSvgRepeatIcon(), ` ${t("repeatOn")}`],
     attrs: { type: "button" },
   }) as HTMLButtonElement;
 
@@ -278,13 +286,13 @@ export function createPractiseTab(host: PanelHost): PractiseTab {
   const startShadowButton = el({
     tag: "button",
     class: "button primary",
-    text: `▶ ${t("btnStartShadowing")}`,
+    children: [makeSvgPlayIcon(), ` ${t("btnStartShadowing")}`],
     attrs: { type: "button" },
   }) as HTMLButtonElement;
   const cancelShadowButton = el({
     tag: "button",
     class: "button",
-    text: t("btnCancelShadowing"),
+    children: [makeSvgStopIcon(), ` ${t("btnCancelShadowing")}`],
     attrs: { type: "button" },
   }) as HTMLButtonElement;
   cancelShadowButton.hidden = true;
@@ -305,13 +313,13 @@ export function createPractiseTab(host: PanelHost): PractiseTab {
   const recordButton = el({
     tag: "button",
     class: "button danger",
-    text: `● ${t("btnRecord")}`,
+    children: [makeSvgRecordIcon(), ` ${t("btnRecord")}`],
     attrs: { type: "button" },
   }) as HTMLButtonElement;
   const playTakeButton = el({
     tag: "button",
     class: "button",
-    text: `▶ ${t("playMyTake")}`,
+    children: [makeSvgPlayIcon(), ` ${t("playMyTake")}`],
     attrs: { type: "button" },
   }) as HTMLButtonElement;
   const abButton = el({
@@ -515,8 +523,8 @@ export function createPractiseTab(host: PanelHost): PractiseTab {
       Promise.all(unique.map(async (word) => [word, await requestIpa(word)] as const)),
       accent === "en-GB"
         ? Promise.all(
-            unique.map(async (word) => [word, await requestDictionary(word)] as const),
-          )
+          unique.map(async (word) => [word, await requestDictionary(word)] as const),
+        )
         : Promise.resolve([] as (readonly [string, Awaited<ReturnType<typeof requestDictionary>>])[]),
     ]);
 
@@ -672,7 +680,7 @@ export function createPractiseTab(host: PanelHost): PractiseTab {
       recordTimer = null;
     }
     recordStartedAt = 0;
-    recordButton.textContent = `● ${t("btnRecord")}`;
+    recordButton.replaceChildren(makeSvgRecordIcon(), ` ${t("btnRecord")}`);
     recordButton.disabled = false;
     playTakeButton.disabled = take === null;
     abButton.disabled = take === null;
@@ -729,7 +737,7 @@ export function createPractiseTab(host: PanelHost): PractiseTab {
     }
 
     recordStartedAt = Date.now();
-    recordButton.textContent = `⏹ ${t("btnStopRecording")}`;
+    recordButton.replaceChildren(makeSvgStopIcon(), ` ${t("btnStopRecording")}`);
     playTakeButton.disabled = true;
     abButton.disabled = true;
     discardButton.disabled = true;
@@ -868,8 +876,8 @@ export function createPractiseTab(host: PanelHost): PractiseTab {
                 ? { title: t("missedWord") }
                 : word.status === "substituted"
                   ? {
-                      title: `${t("replacedWord")}: ${word.heard ?? ""}`,
-                    }
+                    title: `${t("replacedWord")}: ${word.heard ?? ""}`,
+                  }
                   : { title: t("extraWord") },
         }),
       );

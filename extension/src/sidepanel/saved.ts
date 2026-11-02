@@ -21,6 +21,7 @@ import {
 } from "../shared/saved";
 import { Speaker, browserSpeechSource } from "../services/tts";
 import type { SavedItem } from "../shared/storage";
+import { makeSvgPlayIcon, makeSvgRepeatIcon } from "../ui/icons";
 
 export interface SavedTab {
   readonly element: HTMLElement;
@@ -66,7 +67,7 @@ export function createSavedTab(host: PanelHost): SavedTab {
   const reviewButton = el({
     tag: "button",
     class: "button",
-    text: `🔁 ${t("savedReview")}`,
+    children: [makeSvgRepeatIcon(), ` ${t("savedReview")}`],
     attrs: { type: "button" },
   }) as HTMLButtonElement;
 
@@ -159,7 +160,7 @@ export function createSavedTab(host: PanelHost): SavedTab {
     const listen = el({
       tag: "button",
       class: "button small",
-      text: `▶ ${t("btnListen")}`,
+      children: [makeSvgPlayIcon(), ` ${t("btnListen")}`],
       attrs: { type: "button" },
     }) as HTMLButtonElement;
     listen.addEventListener("click", () => speakItem(item));
@@ -269,7 +270,7 @@ export function createSavedTab(host: PanelHost): SavedTab {
       const listen = el({
         tag: "button",
         class: "button",
-        text: `▶ ${t("btnListen")}`,
+        children: [makeSvgPlayIcon(), ` ${t("btnListen")}`],
         attrs: { type: "button" },
       }) as HTMLButtonElement;
       listen.addEventListener("click", () => speakItem(item));
@@ -433,7 +434,7 @@ export function createSavedTab(host: PanelHost): SavedTab {
   };
 
   const render = (): void => {
-    reviewButton.textContent = `🔁 ${t("savedReview")}`;
+    reviewButton.replaceChildren(makeSvgRepeatIcon(), ` ${t("savedReview")}`);
     reviewButton.disabled = items.length === 0;
     exportButton.disabled = items.length === 0;
     clearButton.disabled = items.length === 0;

@@ -82,34 +82,34 @@ export type ToBackground =
   | { readonly type: "selection:cleared" }
   | { readonly type: "open-panel"; readonly target: PracticeTarget | null }
   | {
-      readonly type: "dictionary:lookup";
-      readonly word: string;
-      readonly requestId: string;
-    }
+    readonly type: "dictionary:lookup";
+    readonly word: string;
+    readonly requestId: string;
+  }
   | {
-      /**
-       * Pronunciation from the bundled CMUdict (spec 5.2).
-       *
-       * The dictionary is 2.09 MB, so it is answered by the background rather
-       * than loaded in every content script.
-       */
-      readonly type: "ipa:lookup";
-      readonly word: string;
-      readonly requestId: string;
-    }
+    /**
+     * Pronunciation from the bundled CMUdict (spec 5.2).
+     *
+     * The dictionary is 2.09 MB, so it is answered by the background rather
+     * than loaded in every content script.
+     */
+    readonly type: "ipa:lookup";
+    readonly word: string;
+    readonly requestId: string;
+  }
   | {
-      /**
-       * The localised message bag (spec 3, 5.10).
-       *
-       * A content script cannot fetch `chrome-extension://…/_locales/…`: it runs
-       * on the page's origin, so the request is cross-origin and fails, and the
-       * UI silently falls back to showing raw message keys. Only an extension
-       * context can read those files, so the background answers here.
-       */
-      readonly type: "i18n:messages";
-      readonly language: UiLanguageCode;
-      readonly requestId: string;
-    };
+    /**
+     * The localised message bag (spec 3, 5.10).
+     *
+     * A content script cannot fetch `chrome-extension://…/_locales/…`: it runs
+     * on the page's origin, so the request is cross-origin and fails, and the
+     * UI silently falls back to showing raw message keys. Only an extension
+     * context can read those files, so the background answers here.
+     */
+    readonly type: "i18n:messages";
+    readonly language: UiLanguageCode;
+    readonly requestId: string;
+  };
 
 // ---------------------------------------------------------------------------
 // Messages: background -> page
@@ -119,21 +119,21 @@ export type FromBackground =
   | { readonly type: "dict:result"; readonly requestId: string; readonly result: DictionaryResult }
   | { readonly type: "ipa:result"; readonly requestId: string; readonly result: IpaResult }
   | {
-      readonly type: "i18n:result";
-      readonly requestId: string;
-      readonly messages: Readonly<Record<string, string>>;
-    }
+    readonly type: "i18n:result";
+    readonly requestId: string;
+    readonly messages: Readonly<Record<string, string>>;
+  }
   | { readonly type: "panel:opened"; readonly ok: boolean }
   | { readonly type: "panel:begin-practice"; readonly target: PracticeTarget }
   | { readonly type: "panel:show-notice"; readonly messageKey: string }
   | { readonly type: "settings:changed" }
   /** Background asks the page to open the quick-read pop-up for its selection. */
   | {
-      readonly type: "selection:request";
-      readonly fallbackText?: string;
-      /** `popup` for the shortcut; `practice` for a context-menu hand-off. */
-      readonly intent?: "popup" | "practice";
-    };
+    readonly type: "selection:request";
+    readonly fallbackText?: string;
+    /** `popup` for the shortcut; `practice` for a context-menu hand-off. */
+    readonly intent?: "popup" | "practice";
+  };
 
 /** Reply to `ipa:lookup`. `ok: false` means "not in CMUdict", not an error. */
 export interface IpaResult {

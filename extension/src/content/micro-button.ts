@@ -148,29 +148,31 @@ export interface MicroButtonController {
   readonly host: HTMLElement | null;
 }
 
+export function getEqualizerMarkup(iconColor: string): string {
+  return `<rect x="23" y="40" width="10" height="20" rx="5" fill="${iconColor}" />
+  <rect x="38" y="29" width="10" height="42" rx="5" fill="${iconColor}" />
+  <rect x="53" y="20" width="10" height="60" rx="5" fill="${iconColor}" />
+  <rect x="68" y="35" width="10" height="30" rx="5" fill="${iconColor}" />`;
+}
+
+export function createEqualizerSvg(backgroundColor: string, iconColor: string): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img">
+  <rect width="100" height="100" rx="22" fill="${backgroundColor}" />
+  ${getEqualizerMarkup(iconColor)}
+</svg>`;
+}
+
 /** The four bars of the logo, matching the extension icon. */
 function logoSvg(): SVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(
+    createEqualizerSvg("none", "currentColor"),
+    "image/svg+xml",
+  );
+  const svg = doc.documentElement as unknown as SVGElement;
   svg.setAttribute("width", "16");
   svg.setAttribute("height", "16");
-  svg.setAttribute("viewBox", "0 0 16 16");
   svg.setAttribute("aria-hidden", "true");
-
-  // Heights mirror the generated PNG icon: short, mid, tall, mid.
-  const bars: readonly (readonly [number, number, number])[] = [
-    [1.5, 7.5, 3],
-    [5.5, 5.5, 5],
-    [9.5, 3.5, 7],
-  ];
-  for (const [x, y, height] of bars) {
-    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    rect.setAttribute("x", String(x));
-    rect.setAttribute("y", String(y));
-    rect.setAttribute("width", "2");
-    rect.setAttribute("height", String(height));
-    rect.setAttribute("fill", "currentColor");
-    svg.appendChild(rect);
-  }
   return svg;
 }
 
@@ -206,46 +208,46 @@ export function createMicroButton(
     const { mountShadowUi } = await import("../ui/shadow");
     ui = await mountShadowUi(ctx, {
       name: "micro-button",
-        css: CSS,
-        onMount: (m2) => {
-          // Local consts first, so the click handler does not have to cope with
-          // outer mutable references being null.
-          m2.container.classList.add("es-root");
+      css: CSS,
+      onMount: (m2) => {
+        // Local consts first, so the click handler does not have to cope with
+        // outer mutable references being null.
+        m2.container.classList.add("es-root");
 
-          const buttonEl = el({ tag: "button", class: "es-button" }) as HTMLButtonElement;
-          buttonEl.type = "button";
-          buttonEl.setAttribute("aria-label", options.label);
-          buttonEl.title = options.label;
-          buttonEl.appendChild(logoSvg());
-          m2.container.appendChild(buttonEl);
+        const buttonEl = el({ tag: "button", class: "es-button" }) as HTMLButtonElement;
+        buttonEl.type = "button";
+        buttonEl.setAttribute("aria-label", options.label);
+        buttonEl.title = options.label;
+        buttonEl.appendChild(logoSvg());
+        m2.container.appendChild(buttonEl);
 
-          if (options.tooltip) {
-            const tip = el({ tag: "div", class: "es-tooltip", text: options.tooltip });
-            m2.container.appendChild(tip);
-            tooltip = tip;
-          }
+        if (options.tooltip) {
+          const tip = el({ tag: "div", class: "es-tooltip", text: options.tooltip });
+          m2.container.appendChild(tip);
+          tooltip = tip;
+        }
 
-          buttonEl.addEventListener("click", (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const chosen = selection;
-            hide();
-            if (chosen) options.onActivate(chosen);
-          });
+        buttonEl.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const chosen = selection;
+          hide();
+          if (chosen) options.onActivate(chosen);
+        });
 
-          // Esc to dismiss, and hide as soon as the page scrolls. The button is
-          // position:fixed so it cannot follow the text, so scrolling would leave
-          // it stranded pointing at unrelated words.
-          stopDismissalWatcher = watchForDismissal(
-            m2.shadow,
-            () => selection?.rect ?? null,
-            () => hide(),
-            { onScroll: "never" },
-          );
+        // Esc to dismiss, and hide as soon as the page scrolls. The button is
+        // position:fixed so it cannot follow the text, so scrolling would leave
+        // it stranded pointing at unrelated words.
+        stopDismissalWatcher = watchForDismissal(
+          m2.shadow,
+          () => selection?.rect ?? null,
+          () => hide(),
+          { onScroll: "never" },
+        );
 
-          return { container: m2.container };
-        },
-      });
+        return { container: m2.container };
+      },
+    });
   };
 
   /**
